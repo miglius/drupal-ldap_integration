@@ -7,6 +7,8 @@ status: STABLE
 
   This module allows users to authenticate against an admin-defined LDAP
 directory, as well as perform searches on its entries.
+  Additionally, users can read and modify their data in the LDAP directory,
+being the administrator able to limit it.
 
  - INSTALLATION
 
@@ -36,11 +38,22 @@ parameters in preferences.
   For help on defining these parameters, refer to the relevant entry on the
 PHP manual: http://www.php.net/manual/en/function.preg-replace.php
 
+  Besides this, the way the module treats the LDAP data is defined in the
+global variable 'ldap_attributes' at the beginning of the module source
+file. This distribution provides a set of common definitions, but they
+might have to be changed to fit special needs. (OK, since you have not
+understood a word of the last paragraph, just take a look to the beginning
+of the source code, from line 21).
+
  - USE
 
   The authentication facility needs no further configuration. The search
 feature, however, needs enabling the block provided by the module in
 the /admin/block administration page.
+
+  For the LDAP user data reading and editing, the administrator can set
+what can be read and what can be modified by the user, by editing
+the relevant preferences. 
 
  - ISSUES
 

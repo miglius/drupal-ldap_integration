@@ -5,6 +5,50 @@ define(LDAP_PERM_SEARCH, 'perform ldap searches');
 define(LDAP_DEFAULT_PATTERN, '/(\S+)@(\S+)\.(\S+)/i');
 define(LDAP_DEFAULT_REPLACEMENT, 'uid=$1,dc=$2,dc=$3');
 define(LDAP_PASSWORDS_SECRET_KEY, 'change this key to any secret string you wish');
+define(LDAP_SETTINGS_GROUP_STRING, 'LDAP attributes');
+define(LDAP_USER_DATA_EDIT_TAB, 'LDAP user data');
+define(LDAP_CATEGORY_USER_DATA, 'ldap_user_data');
+
+/*
+ * Edit this list so that all attributes that you might wish to show
+ * are included. You may then enable/disable attributes in the Admin page.
+ *
+ * The left hand element indicates the LDAP attribute name.
+ *
+ * The 1st right hand elements in the array determine how the attribute and
+ * its value are displayed. The first element may be 'text', 'image', or 'url'.
+ */
+
+$GLOBALS["ldap_attributes"] = array(
+  "givenName"     => array("text", "textfield", t("First Name"), 64, 64),
+  "initials"      => array("text", "textfield", t("Initial"), 64, 4, t("Your middle initial.")),      
+  "sn"            => array("text", "textfield", t("Last Name"), 64, 64), //aka Surname
+  "cn"            => array("text", "textfield", t("Common Name"), 64, 64),      
+  "displayName"   => array("text", "textfield", t("Display Name"), 64, 64),      
+  "mail"          => array("mailto", "textfield", t("Email"), 64, 64, ""),      
+  "description"   => array("text", "textfield", t("Description"), 64, 64, ""),            
+  "postOfficeBox" => array("text", "textfield", t("P.O. Box"), 64, 64),      
+  "streetaddress" => array("text", "textfield", t("Address"), 64, 64),
+  "l"             => array("text", "textfield", t("City"), 64, 64, t("Your city or other location")),
+  "st"            => array("text", "textfield", t("State"), 4, 2, t("Your state or province")),
+  "postalCode"    => array("text", "textfield", t("Postal Code"), 7, 5, t("Your Zip or Postal code")),
+  "co"            => array("text", "textfield", t("Country"), 64, 64, t("Country or region")),  
+  "company"       => array("text", "textfield", t("Company"), 12, 12, "Company or organization"),
+  "title"         => array("text", "textfield", t("Title"), 12, 12),
+  "department"    => array("text", "textfield", t("Department"), 64, 64),
+  "physicalDeliveryOfficeName" => array("text", "textfield", t("Office"), 64, 64, ""),      
+  "homephone"     => array("text", "textfield", t("Home Phone"), 64, 64, ""),
+  "mobile"        => array("text", "textfield", t("Mobile Phone"), 64, 64, ""),
+  "otherTelephone" => array("text", "textfield", t("Other Phone"), 64, 64, ""),
+  "wWWHomePage"   => array("image", "textfield", t("Web Page"), 64, 64, ""),
+  "url"           => array("link", "textfield", t("Other web pages"), 64, 64, ""),
+  "roomNumber"    => array("text", "textfield", t("Office Location"), 64, 64, ""),
+  "telephoneNumber" => array("text", "textfield", t("Office Phone"), 64, 64, ""),
+        
+  // examples of displaying attributes in Select menus or TextArea boxes. Helpful for composing search queries      
+  "gender"        => array("text", "select", t("Gender"), array(0 => "-", "m" => t("male"), "f" => t("female")), "Pick a gender", 0, 0),      
+  "publickey"     => array("text", "textarea", t("Public key"), 64, 4, ""));
+
 
 /*********************************
  *       1. Drupal hooks         *
@@ -47,8 +91,10 @@ function ldap_integration_settings() {
   foreach ($ldap_attributes as $key => $field) {
     $fields[$key] = $field[2];
   }
-  //$output .= form_select(t('Attributes Displayed on User pages'), 'ldap_user_attributes', _ldap_integration_active_attributes('user'), $fields, t('Select the attributes which will be displayed on User pages. Blank attributes will be omitted. You may add attributes to this list by editing the first function in ldap_integration.module'), 'size="6"', 1);
-  $output .= form_select(t('Attributes Displayed on Search Results page'), 'ldap_resultslist_attributes', _ldap_integration_active_attributes('resultslist'), $fields, t('Select the attributes which will be displayed on Search Results page. This list should be brief (4 attributes or so). You may add attributes to this list by editing the <code>_ldap_integration_init()</code> function in <code>ldap_integration.module</code>'), 'size="6"', 1);
+  
+  $output .= form_select(t('Attributes displayed on search results page'), 'ldap_resultslist_attributes', variable_get('ldap_resultslist_attributes', array()), $fields, t('Select the attributes which will be displayed on Search Results page. This list should be brief (4 attributes or so). You may add attributes to this list by editing the relevant global variable at the beginning of the module\'s code'), 'size="6"', 1);
+  $output .= form_select(t('Attributes displayed on user pages'), 'ldap_user_attributes', variable_get('ldap_user_attributes', array()), $fields, t('Select the attributes which will be displayed on user pages. Blank attributes will be omitted. You may add attributes to this list by editing the relevant global variable at the beginning of the module\'s code'), 'size="6"', 1);
+  $output .= form_select(t('Attributes that can be edited by users'), 'ldap_useredit_attributes', variable_get('ldap_useredit_attributes', array()), $fields, t('Select the attributes users will be able to edit on their user pages. Blank attributes will be omitted. You may add attributes to this list by editing the relevant global variable at the beginning of the module\'s code'), 'size="6"', 1);
 
   return $output;
 }
@@ -87,6 +133,7 @@ function ldap_integration_info($field = NULL) {
 function ldap_integration_auth($name, $pass, $server) {
   global $user, $ldap_migrate;
   global $ldap_attributes;
+
   if (!$ldap_attributes) {
     ldap_integration_attributes();
   }  
@@ -97,7 +144,7 @@ function ldap_integration_auth($name, $pass, $server) {
     return 0;
   }
 
-  $_SESSION['ldap_pass'] = _ldap_integration_encrypt($pass);
+  _ldap_integration_save_pass($pass);
     
   return 1;
 }
@@ -117,70 +164,112 @@ function ldap_integration_menu($may_cache) {
   return $items;
 }
 
+function ldap_integration_user($op, &$edit, &$user, $category) {
+  switch($op) {
+    case 'categories':
+      return array(array('name' => LDAP_CATEGORY_USER_DATA, 'title' => t(LDAP_USER_DATA_EDIT_TAB), 'weight' => 10));
+    case 'form':
+      return ldap_integration_user_form($category);
+    case 'update':
+      ldap_integration_user_update($category, $edit);
+      break;
+    case 'validate':
+      break;
+    case 'view':
+      return ldap_integration_user_view();
+  }
+}
+
 /*********************************
- *      2. Utility functions     *
+ *     2. Delegate functions     *
  *********************************/
 
-function ldap_integration_attributes() {
-  
-    /*
-    ** Edit this list so that all attributes that you might wish to show
-    ** are included. You may then enable/disable attributes in the Admin page.
-    **
-    ** The left hand element indicates the LDAP attribute name.
-    **
-    ** The 1st right hand elements in the array determine how the attribute and
-    ** its value are displayed. The first element may be 'text', 'image', or 'url'.
-    */
-  
-    $GLOBALS["ldap_attributes"] = array(
-      "givenName"     => array("text", "textfield", t("First Name"), "", 64, 64),
-      "initials"      => array("text", "textfield", t("Initial"), "", 64, 4, t("Your middle initial.")),      
-      "sn"            => array("text", "textfield", t("Last Name"), "", 64, 64), //aka Surname
-      "cn"            => array("text", "textfield", t("Common Name"), "", 64, 64),      
-      "displayName"   => array("text", "textfield", t("Display Name"), "", 64, 64),      
-      "mail"          => array("mailto", "textfield", t("Email"), "", 64, 64, ""),      
-      "description"   => array("text", "textfield", t("Description"), "", 64, 64, ""),            
-      "postOfficeBox" => array("text", "textfield", t("P.O. Box"), "", 64, 64),      
-      "streetaddress" => array("text", "textfield", t("Address"), "", 64, 64),
-      "l"             => array("text", "textfield", t("City"), "", 64, 64, t("Your city or other location")),
-      "st"            => array("text", "textfield", t("State"), "", 4, 2, t("Your state or province")),
-      "postalCode"    => array("text", "textfield", t("Postal Code"), "", 7, 5, t("Your Zip or Postal code")),
-      "co"            => array("text", "textfield", t("Country"), "", 64, 64, t("Country or region")),  
-      "company"       => array("text", "textfield", t("Company"), "", 12, 12, "Company or organization"),
-      "title"       => array("text", "textfield", t("Title"), "", 12, 12),
-      "department"    => array("text", "textfield", t("Department"), "", 64, 64),
-      "physicalDeliveryOfficeName" => array("text", "textfield", t("Office"), "", 64, 64, ""),      
-      "homephone"     => array("text", "textfield", t("Home Phone"), "", 64, 64, ""),
-      "mobile"        => array("text", "textfield", t("Mobile Phone"), "", 64, 64, ""),
-      "otherTelephone" => array("text", "textfield", t("Other Phone"), "", 64, 64, ""),
-      "wWWHomePage"   => array("image", "textfield", t("Web Page"), "", 64, 64, ""),
-      "url"        => array("link", "textfield", t("Other web pages"), "", 64, 64, ""),
-      "roomNumber"    => array("text", "textfield", t("Office Location"), "", 64, 64, ""),
-      "telephoneNumber" => array("text", "textfield", t("Office Phone"), "", 64, 64, ""),
-            
-      // examples of displaying attributes in Select menus or TextArea boxes. Helpful for composing search queries      
-      "gender"        => array("text", "select", t("Gender"), "", array(0 => "-", "m" => t("male"), "f" => t("female")), "Pick a gender", 0, 0),      
-      "publickey"     => array("text", "textarea", t("Public key"), "", 64, 4, ""),
-      );
-    
-    // this array specifies which LDAP attributes should be copied to the Drupal user record during login
-    // the left hand element is the Drupal field name and the right hand side is the LDAP attribute name    
-    $GLOBALS["ldap_migrate"] = array (
-      // DRUPAL FIELD => LDAP ATTRIBUTE
-      "mail"          => "mail"
-    );
-    
-    /*
-    ** leaving this here in case folks want to query using dates.
-    **  
-      $GLOBALS["ldap_days"][0] = t("day");
-      for ($n=1; $n<=31; $n++) {
-        $GLOBALS["ldap_days"][$n] = $n;
-      }
-      $GLOBALS["ldap_months"] = array(0 => t("month"), 1 => t("January"), 2 => t("February"), 3 => t("March"), 4 => t("April"), 5 => t("May"), 6 => t("June"), 7 => t("July"), 8 => t("August"), 9 => t("September"), 10 => t("October"), 11 => t("November"), 12 => t("December"));
-    */
+function ldap_integration_user_form($category) {
+  global $user, $ldap_attributes;
 
+  if ($category != LDAP_CATEGORY_USER_DATA) {
+    return null;
+  }
+  
+  if (!variable_get('ldap_useredit_attributes', array())) {
+    return null;
+  }
+  
+  if (!$con = _ldap_integration_init()) {
+    return '';
+  }
+  
+  $dn = _ldap_integration_login2dn($user->name);
+  $result = ldap_read($con, $dn, "objectClass=*");
+  $entries = ldap_get_entries($con, $result);
+  $entry = $entries[0];
+  
+  
+  $attributes = variable_get('ldap_useredit_attributes', array());
+  $output = '';
+  foreach($attributes as $attribute) {
+    $attr_info = $ldap_attributes[$attribute];
+    array_shift($attr_info);
+    $value = $entry[$attribute][0];
+    $output .= _ldap_integration_attribute_form($attribute, $value, $attr_info);
+  }
+  $element = array(
+    'title' => t(LDAP_SETTINGS_GROUP_STRING),
+    'data' => $output,
+    'weight' => 0);
+  $ret = array($element);
+  
+  return $ret;
+}
+
+function ldap_integration_user_update($category, &$edit) {
+  global $user;
+  
+  if (!$con = _ldap_integration_init()) {
+    return '';
+  }
+  
+  $dn = _ldap_integration_login2dn($user->name);
+  
+  if ($category != LDAP_CATEGORY_USER_DATA) {
+    return null;
+  }
+  
+  $writeout = array();
+  $editables = variable_get('ldap_useredit_attributes', array());
+  
+  foreach($edit as $edit_attr => $edit_val) {
+    // Preventing a POST data injection: we check allowance to write value
+    if (array_search($edit_attr, $editables) !== FALSE) {
+      $writeout[$edit_attr] = $edit_val;
+      $edit[$edit_attr] = null;
+    }
+  }
+
+  if ($writeout) {
+    ldap_modify($con, $dn, $writeout);
+  }
+}
+
+function ldap_integration_user_view() {
+  global $user;
+    
+  if (!$con = _ldap_integration_init()) {
+    return '';
+  }
+  
+  $dn = _ldap_integration_login2dn($user->name);
+  $result = ldap_read($con, $dn, "objectClass=*");
+  $entries = ldap_get_entries($con, $result);
+  $entry = $entries[0];
+  
+  $ret = array();
+  $attributes = variable_get('ldap_user_attributes', array());
+  foreach($attributes as $attribute) {
+    $ret[$attribute] = $entry[$attribute][0];
+  }
+  
+  return $ret;
 }
 
 /*********************************
@@ -196,10 +285,6 @@ function ldap_integration_query_callback() {
 /*********************************
  *     4. Auxiliary functions    *
  *********************************/
-
-function _ldap_integration_active_attributes($mode) {
-    return variable_get('ldap_' . $mode . '_attributes', array());
-}
 
 // $name and $pass only provided during login. usually these are retrieved from the user's data field
 function _ldap_integration_init($dn = '', $pass = '') {
@@ -219,7 +304,7 @@ function _ldap_integration_init($dn = '', $pass = '') {
   }
 
   if (!$pass) {
-    $pass = _ldap_integration_decrypt($_SESSION['ldap_pass']);
+    $pass = _ldap_integration_retrieve_pass();
   }
 
   //die('con: ' . $con . ', dn: ' . $dn . ', pass: ' . $pass . ', server: ' . $server . ', port: ' . $port);
@@ -310,6 +395,27 @@ function _ldap_integration_login2dn($login) {
   return preg_replace($pattern, $replacement, $string);
 }
 
+function _ldap_integration_save_pass($pass) {
+  $_SESSION['ldap_pass'] = _ldap_integration_encrypt($pass);
+}
+
+function _ldap_integration_retrieve_pass() {
+  return _ldap_integration_decrypt($_SESSION['ldap_pass']);
+}
+
+function _ldap_integration_attribute_form($attrname, $value, $info) {
+  $type = array_shift($info);
+  $title = array_shift($info);
+  
+  switch($type) {
+    case 'textfield':
+      $output = form_textfield($title, $attrname, $value, array_shift($info), array_shift($info), array_shift($info), array_shift($info), array_shift($info));
+      break;
+  }
+  
+  return $output;
+}
+
 /*********************************
  *          5. Themes            *
  *********************************/
@@ -333,7 +439,7 @@ function theme_ldap_integration_results_list(&$results) {
   }
 
   $header = array();
-  $activeattrs = _ldap_integration_active_attributes('resultslist');
+  $activeattrs = variable_get('ldap_resultslist_attributes', array());
   foreach ($activeattrs as $attribute) {
     $header[] = array(
       'data' => $ldap_attributes[$attribute][2],
