@@ -1,7 +1,7 @@
 ======================================
 | ldap_integration.module for Drupal |
 ======================================
-      +--- CVS MAIN branch ---+
+      +--- CVS HEAD branch ---+
 
 30/Dec/2005
 -----------
