@@ -60,7 +60,7 @@ function ldap_integration_help($section) {
       break;
     case 'admin/modules#description':
     case 'admin/help#ldap_integration':
-      $output = t('Enables authentication via LDAP. <strong>IMPORTANT:</strong> module <em>zcallbacks</em> down below must be enabled for this one to work.');
+      $output = t('Enables authentication via LDAP.');
       break;
     case 'user/help#ldap_integration':
       $output = t('<p>If you are registered in %org LDAP directory, you\'ll probably be able to login this site by using your LDAP login and password</p>', array('%org' => variable_get('ldap_org_name', '')));
