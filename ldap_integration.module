@@ -399,7 +399,6 @@ function ldap_integration_menu($may_cache) {
 }
 
 function ldap_integration_user($op, &$edit, &$user, $category = NULL) {
-//msg("$op (uid: $user->uid; cat: $category)");
   switch($op) {
     case 'categories':
       return ldap_integration_user_categories();
@@ -420,7 +419,6 @@ function ldap_integration_user($op, &$edit, &$user, $category = NULL) {
 }
 
 function ldap_integration_form_alter($form_id, &$form) {
-msg($form_id);
   if ($form_id == 'user_login_block') {
     $form['#validate'] = array('ldap_integration_login_validate' => array());
   }
@@ -525,7 +523,6 @@ function ldap_integration_user_login(&$user) {
     // we'll grant back those deserved.
     foreach ($ldap_group_role_mappings as $role) {
       _ldap_integration_take_role_from_user($user, $role);
-//msg("_ldap_integration_take_role_from_user($user, $role);");
     }
   }
 
@@ -564,7 +561,6 @@ function ldap_integration_user_login(&$user) {
     if ($role = $ldap_group_role_mappings[$group]) {
       _ldap_integration_create_role($role);
       _ldap_integration_give_role_to_user($user, $role);
-//msg("_ldap_integration_give_role_to_user($user, $role);");
     }
   }
   $ldap->disconnect();
@@ -721,7 +717,6 @@ function _ldap_integration_login2dn($login) {
         break;
       }
     }
-//msg_r($ret);
   }
 
   return $ret;
