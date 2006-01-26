@@ -675,24 +675,27 @@ function ldap_integration_user_view($user) {
   }
 
   $ldap->disconnect();
+  
   if (!$ldap->connect(LDAP_READER_USER_DN, LDAP_READER_USER_PASS)) {
     watchdog('user', "User load: user $user->name's data could not be read in the LDAP directory");
     return;
   }
 
-  $entry = $ldap->retrieveAttributes($user->ldap_dn);
-
-  $ret = array();
-  $allowed_attrs = variable_get('ldap_user_attributes', array()) ? variable_get('ldap_user_attributes', array()) : array();
-
-  foreach($allowed_attrs as $attribute) {
-    $shown_attrs[$attribute] = $entry[strtolower($attribute)][0];
-  }
-
-  $ret[LDAP_SETTINGS_GROUP_STRING][] = theme('ldap_integration_ldap_entry', $shown_attrs);
-
-  // Disconnecting just in case, for the sake of security  
-  $ldap->disconnect();
+  if ($user->uid == arg(1)){ //for admins, who might otherwise see their ldap info while viewing other accounts
+	  $entry = $ldap->retrieveAttributes($user->ldap_dn);
+	
+	  $ret = array();
+	  $allowed_attrs = variable_get('ldap_user_attributes', array()) ? variable_get('ldap_user_attributes', array()) : array();
+	
+	  foreach($allowed_attrs as $attribute) {
+		$shown_attrs[$attribute] = $entry[strtolower($attribute)][0];
+	  }
+	
+	  $ret[LDAP_SETTINGS_GROUP_STRING][] = theme('ldap_integration_ldap_entry', $shown_attrs);
+	
+	  // Disconnecting just in case, for the sake of security  
+	  $ldap->disconnect();
+	  }
   return $ret;
 }
 
