@@ -1,0 +1,4 @@
+; $Id$
+name = ldapauth
+description = "Implements LDAP Authentication"
+package = Administration

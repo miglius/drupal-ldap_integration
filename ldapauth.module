@@ -1,0 +1,696 @@
+<?php
+// $Id$
+
+include_once('ldap_integration/ldapauth.conf.php');
+include_once('ldap_integration/libdebug.php');
+include_once('ldap_integration/LDAPInterface.php');
+
+// Private constants. Do not touch
+define(LDAP_FIRST_DRUPAL, 0);
+define(LDAP_FIRST_LDAP, 1);
+
+// Private constants (default values). Do not touch either
+define(LDAP_DEFAULT_ORG, 'LDAP Directory');
+define(LDAP_DEFAULT_BASE_DN, 'ou=Users,dc=drupal,dc=org');
+define(LDAP_DEFAULT_USER_ATTRIBUTE, 'sAMAccountName');
+
+$GLOBALS['ldap'] = array();
+
+
+/*********************************
+ *       1. Drupal hooks         *
+ *********************************/
+/** 
+* Implements hook_help()
+**/
+function ldapauth_help($section) {
+  $output = '';
+  switch ($section) {
+    case 'admin/modules#name':
+      $output = 'ldapauth';
+      break;
+    case 'admin/modules#description':
+    case 'admin/help#ldapauth':
+      $output = t('Enables authentication via LDAP.');
+      break;
+    case 'user/help#ldapauth':
+      $output = t('Login using LDAP.');
+      break;
+  }
+  return $output;
+}
+
+/** 
+* Implements hook_info()
+* required for authentication modules
+**/
+
+function ldapauth_info($field = 0) {
+  $info['name'] = 'LDAP authentication';
+  $info['protocol'] = 'LDAP';
+
+  if ($field) {
+    return $info[$field];
+  }
+  else {
+    return $info;
+  }
+}
+
+/** 
+* Implements hook_menu()
+**/
+
+function ldapauth_menu($may_cache) {
+  $items = array();
+
+  if ($may_cache) {
+    $items[] = array(	
+      'path' => 'admin/settings/ldapauth', 
+      'title' => t('LDAP Integration'),
+      'callback' => 'ldapauth_admin_list',
+      'access' => user_access('access administration pages'),
+      'description' => t('Configure LDAP settings'),
+      );
+
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/list',
+      'title' => t('List'),
+      'callback' => 'ldapauth_admin_list',
+      'access' => user_access('access administration pages'),
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      );	
+
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/add',
+      'title' => t('Configure LDAP Server'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('ldapauth_admin_form'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 1,
+      'access' => user_access('access administration pages'),
+      );
+		
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/edit',
+      'title' => t('Configure LDAP Server'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('ldapauth_admin_form'),
+      'type' => MENU_CALLBACK,
+      'access' => user_access('access administration pages'),
+      );
+		
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/delete',
+      'title' => t('Delete LDAP Server'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('ldapauth_admin_delete'),
+      'type' => MENU_CALLBACK,
+      'access' => user_access('access administration pages'),
+      );
+	}
+	return $items;
+}
+
+/** 
+* Implements hook_perm()
+**/
+function ldapauth_perm() {
+  return array('access administration pages');
+}
+
+/** 
+* Implements hook_cron()
+**/
+function ldapauth_cron() {
+  cache_clear_all(NULL, 'cache_filter');
+}
+
+function ldapauth_admin_list() {
+
+  $sql = "SELECT sid, name FROM {ldapauth} ORDER BY sid";
+  $result = db_query($sql);
+  $rows = array();
+  while ($row = db_fetch_object($result)) {
+    $rows[] = array($row->name, l(t('edit'), 'admin/settings/ldapauth/edit/'.$row->name), l(t('delete'), 'admin/settings/ldapauth/delete/'.$row->name)); 
+  }
+  $header = array(
+    t('LDAP Config'), 
+    array(
+      'data' => t('Operations'), 
+      'colspan' => 2
+      ) 
+    );
+  return theme('table', $header, $rows);
+}
+
+function ldapauth_admin_form() {
+
+  $ldap_name = arg(4);
+  if ((arg(3) == "edit") && ($ldap_name != NULL)) {
+    $edit = db_fetch_array(db_query("SELECT * FROM {ldapauth} WHERE name = '%s'", $ldap_name));
+    $form['old-name'] = array(
+      '#type' => 'hidden',
+      '#value' => $ldap_name,
+      );
+  }
+
+  $form['server-settings'] = array( 
+    '#type' => 'fieldset', 
+    '#title' => t('Server settings'), 
+    '#collapsible' => TRUE, 
+    '#collapsed' => FALSE,
+    );
+
+  $form['server-settings']['status'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Activate'),
+    '#return_value' => 1,
+    '#default_value' => $edit['status'],
+    '#description' => t('<p>Activate this directory source for authentication.</p>'),
+    );
+
+  $form['server-settings']['name'] = array(
+    '#type' => 'textfield', 
+    '#title' => t('Name'), 
+    '#default_value' => $edit['name'],
+    '#description' => t('Choose a <em><strong>unique</strong></em> name for this server configuration.'),
+    '#size' => 50, 
+    '#maxlength' => 255, 
+    '#required' => TRUE,
+    );
+
+  $form['server-settings']['server'] = array( 
+    '#type' => 'textfield', 
+    '#title' => t('LDAP server'), 
+    '#default_value' => $edit['server'],
+    '#size' => 50, 
+    '#maxlength' => 255, 
+    '#description' => t('<p>The domain name or IP address of your LDAP Server.</p>'),
+    '#required' => TRUE,
+    ); 
+  
+  $form['server-settings']['port'] = array( 
+    '#type' => 'textfield',
+    '#title' => t('LDAP port'),
+    '#default_value' => $edit['port'],
+    '#size' => 50,
+    '#maxlength' => 255,
+    '#description' => t('<p>The TCP/IP port on the above server which accepts LDAP connections. Must be an integer.</p>'),
+    );
+
+  $form['server-settings']['tls'] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Use TLS encryption'), 
+    '#return_value' => 1, 
+    '#default_value' => $edit['tls'],
+    '#description' => t('<p>Secure the connection between the Drupal and the LDAP servers using TLS.</p>'),
+	); 
+
+  $form['server-settings']['encrypted'] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Store passwords in encrypted form'), 
+    '#return_value' => 1, 
+    '#default_value' => $edit['encrypted'],
+    '#description' => t('<p>Secure the password in LDAP by storing it MD5 encrypted (use with care, as some LDAP directories may do this automatically, what would cause logins problems).</p>'),
+    );
+
+  $form['login-procedure'] = array(
+    '#type' => 'fieldset', 
+    '#title' => 'Login procedure', 
+    '#collapsible' => TRUE, 
+    '#collapsed' => TRUE,
+    );
+
+  $form['login-procedure']['ldap_forget_passwords'] = array(
+    '#type' => 'checkbox', 
+    '#title' => t('Do not store users\' passwords during sessions'), 
+    '#return_value' => true, 
+    '#default_value' => variable_get('ldap_forget_passwords', false),
+    '#description' => t('<p>If you are going to use the <strong>ldapdata</strong> module and allow users to modify their LDAP entries, this module will need to store the user password during the session, so that it can have write access to the LDAP directory.</p><p>Physically, these passwords are stored in the Drupal\'s session table in clear text. If the database is well protected, this should not be a problem, but some admins may feel uneasy about this.</p><p>If you are not going to use the <strong>ldapdata</strong> module, or you are, but only for read-only access, you can safely check this box and get extra security for your system.</p>'),
+	);
+
+  $options_login_process = array( 
+    LDAP_FIRST_DRUPAL => t('Drupal\'s own database. If it fails, will look on the LDAP directory'), 
+    LDAP_FIRST_LDAP => t('LDAP directory only')
+  );
+
+  $form['login-procedure']['ldap_login_process'] = array( 
+    '#type' => 'radios', 
+    '#title' => t('When logging in, Drupal will look up for the user in'),
+    '#description' => t('<p><strong>NOTE: The user with id 1, i.e., the first drupal user is ALWAYS authenticated locally.</strong>This will prevent admin users from locking themselves out of the drupal system due to mis-configurations in ldap</p>'), 
+    '#default_value' => variable_get('ldap_login_process', LDAP_FIRST_DRUPAL),
+    '#options' => $options_login_process, 
+    '#required' => true,
+	);
+
+  $form['login-procedure']['basedn'] = array(
+    '#type' => 'textarea', 
+    '#title' => t('Base DNs'), 
+    '#default_value' => $edit['basedn'],
+    '#cols' => 50, 
+	'#rows' => 6, 
+	'#description' => t('<p>Base DNs for users. Enter one per line in case you need several of them.</p>')
+	);
+
+  $form['login-procedure']['user_attr'] = array( 
+    '#type' => 'textfield', 
+    '#title' => t('UserName attribute'), 
+    '#default_value' => $edit['user_attr'],
+    '#size' => 50, 
+    '#maxlength' => 255, 
+    '#description' => t('<p>The attribute that holds the users\' login name. (eg. <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">cn</em> for eDir or <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">sAMAccountName</em> for Active Directory).</p>'),
+	);
+
+  $form['advanced'] = array( 
+    '#type' => 'fieldset', 
+    '#title' => 'Advanced configuration', 
+    '#collapsible' => TRUE, 
+    '#collapsed' => TRUE
+	);
+
+  $form['advanced']['ldap-note'] = array( 
+    '#value' => '<p>The process of authentication starts by establishing an anonymous connection to the LDAP directory and looking up for the user on it. Once this user is found, LDAP authentication is performed on them.</p><p>However, some LDAP configurations (specially common in <strong>Active Directory</strong> setups) restrict anonymous searches.</p><p>If your LDAP setup does not allow anonymous searches, or these are restricted in such a way that login names for users cannot be retrieved as a result of them, then you have to specify here a DN//password pair that will be used for these searches.</p><p>For security reasons, this pair should belong to an LDAP account with stripped down permissions.</p>'
+	);
+
+  $form['advanced']['binddn'] =  array( 
+    '#type' => 'textfield', 
+    '#title' => t('DN for non-anonymous search'), 
+    '#default_value' => $edit['binddn'],
+    '#size' => 50, 
+    '#maxlength' => 255,
+	);
+
+  if ($edit['bindpw_clear'] ||  !$edit['bindpw']) {
+    $form['advanced']['bindpw'] = array( 
+      '#type' => 'password', 
+      '#title' => t('Password for non-anonymous search'), 
+      '#size' => 50, 
+      '#maxlength' => 255,
+      );
+  }
+  else {
+    // give an option to clear the password
+    $form['advanced']['bindpw_clear'] = array( 
+      '#type' => 'checkbox', 
+      '#title' => t('Clear current password'), 
+      '#default_value' => false,
+      );
+  }
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save configuration'
+    );
+
+	return $form;
+}
+
+/** 
+	* Submit the contact category page for submission
+**/
+
+function ldapauth_admin_form_submit($form_id, $form_values) {
+
+  // set the checking order
+  variable_set('ldap_forget_passwords', $form_values['ldap_forget_passwords']);
+  variable_set('ldap_login_process', $form_values['ldap_login_process']);
+
+  if ((arg(3) == 'add')) {
+    if (db_fetch_object(db_query("SELECT name FROM {ldapauth} WHERE name = '%s'", $form_values['name']))) {
+      form_set_error( 'name', t('An LDAP config with that name already exists.'));
+    }
+
+    db_query("INSERT INTO {ldapauth} (name, status, server, port, tls, encrypted, basedn, user_attr, binddn, bindpw) VALUES ('%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s')", $form_values['name'], $form_values['status'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw']);
+    drupal_set_message(t('LDAP Configuration %config has been added.', array('%config' => $form_values['name'])));
+    watchdog('ldap', t('ldapauth: ldap config %config added.', array('%config' => $form_values['name'])));
+  }
+  else {
+    if ( !$form_values['bindpw_clear'] && $form_values['bindpw']) {
+      db_query("UPDATE {ldapauth} SET name = '%s', status = '%d', server = '%s', port = '%d', tls = '%d', encrypted = '%d', basedn = '%s', user_attr = '%s', binddn = '%s', bindpw = '%s', bindpw_clear = '%d' WHERE name = '%s'", $form_values['name'], $form_values['status'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw'], $form_values['bindpw_clear'], $form_values['old-name']);
+    }
+    else {
+      // set the clear password switch
+      db_query("UPDATE {ldapauth} SET name = '%s', status = '%d', server = '%s', port = '%d', tls = '%d', encrypted = '%d', basedn = '%s', user_attr = '%s', binddn = '%s', bindpw_clear = '%d' WHERE name = '%s'", $form_values['name'], $form_values['status'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw_clear'], $form_values['old-name']);
+    }
+    drupal_set_message(t('LDAP Configuration %config has been updated.', array('%config' => $form_values['name'])));
+    watchdog('ldap', t('ldapauth: ldap config %config updated.', array('%config' => $form_values['name'])));
+  }
+  
+  return 'admin/settings/ldapauth';
+}
+
+function ldapauth_admin_delete() {
+
+  $ldap_name = arg(4);
+
+  if (!$ldap_name) { 
+    drupal_goto('admin/settings/ldapauth'); 
+  }
+  if ($result = db_fetch_object(db_query("SELECT name FROM {ldapauth} WHERE name = '%s'", $ldap_name))) {
+    return confirm_form(
+    array(),
+    t('Are you sure you want to delete the ldap configration named <em><strong>%server</strong></em>?', array('%server'=>$ldap_name)), 
+    'admin/settings/ldapauth',
+    t('<p>This action cannot be undone.</p>'),
+    t('Delete'), 
+    t('Cancel')
+    );
+  }
+  else {
+    drupal_set_message(t('No such LDAP config: %config', array('%config' => $ldap_name)));
+    drupal_goto('admin/settings/ldapauth');
+  }
+}
+
+function ldapauth_admin_delete_submit($form_id, $form_values) {
+  if ($form_values['confirm']) {
+    db_query("DELETE FROM {ldapauth} WHERE name = '%s'", arg(4));
+	drupal_set_message(t('LDAP Configuration %config has been deleted.', array('%config' => $form_values['name'])));
+	watchdog('ldap', t('ldapauth: ldap config %config deleted.', array('%config' => $form_values['name'])));
+  }
+  return 'admin/settings/ldapauth';
+}
+
+function ldapauth_auth($name, $pass, $server) {
+  global $ldap;
+
+  $ok = false;
+  $login_name = $server ? "$name@$server" : $name;
+
+  if (function_exists('ldapauth_transform_login_name')) {
+    $login_name = call_user_func('ldapauth_transform_login_name', $login_name);
+  }
+  
+  $dn = _ldapauth_login2dn($login_name);
+
+  // Not allowing empty passwords because they cause problems
+  // on some setups. See http://drupal.org/node/87831
+  if ($dn && $pass) {
+    $ok = $ldap->connect($dn, $pass);
+  }
+
+  if ($ok && function_exists('ldapauth_user_filter')) {
+    $ok = $ok && call_user_func('ldapauth_user_filter', $ldap->retrieveAttributes($dn));
+  }
+
+  return $ok;
+}
+
+function ldapauth_exit() {
+  // We delete the login info here, instead of just not storing it at
+  // ldapauth_auth(), so at least ldapgroups can use it at login time
+  if (variable_get('ldap_forget_passwords', false) && isset($_SESSION['ldap_login'])) {
+    unset($_SESSION['ldap_login']);
+  }
+}
+
+function ldapauth_user($op, &$edit, &$edit_user, $category = NULL) {
+  global $user;
+  switch ($op) {
+    
+    case 'login':
+      // This is to convert from old ldap_integration to new ldapauth
+      if ($user->ldap_authentified) {
+        db_query("UPDATE {authmap} SET module = 'ldapauth' WHERE uid = '%d'", $user->uid);
+        return;
+      }
+      break;
+
+    case 'form':
+      if (user_access('administer users')) {
+        $form['ldap_settings'] = array(
+          '#type' => 'fieldset',
+          '#title' => 'LDAP authentication settings',
+          '#collapsible' => TRUE,
+          );
+          
+        $form['ldap_settings']['ldap_authentified'] = array(
+          '#type' => 'checkbox',
+          '#title' => 'Authenticate via LDAP',
+          '#default_value' => $edit_user->ldap_authentified,
+          );
+        
+        $form['ldap_settings']['ldap_dn'] = array(
+          '#type' => 'textfield',
+          '#title' => 'LDAP User DN',
+          '#default_value' => $edit_user->ldap_dn,
+          );
+          
+        return $form;
+      }
+      break;
+  }
+}
+
+
+/*********************************
+ *    3. Auxiliary functions     *
+ *********************************/
+
+function _ldapauth_init($config) {
+  global $ldap;	
+
+  $row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE name = '%s'", $config)); 
+  $ldap = new LDAPInterface();
+  $ldap->setOption('name', $row->name);
+  $ldap->setOption('server', $row->server);
+  $ldap->setOption('port', $row->port);
+  $ldap->setOption('tls', $row->tls);
+  $ldap->setOption('encrypted', $row->encrypted);
+  $ldap->setOption('basedn', $row->basedn);
+  $ldap->setOption('user_attr', $row->user_attr);
+}
+
+
+function _ldapauth_login2dn($login) {
+  global $ldap;
+
+  $ret = '';
+
+  $user = _ldapauth_user_lookup($login);
+  if ($user) {
+    $ret = $user['dn'];
+  }
+  return $ret;
+}
+
+function _ldapauth_user_lookup($name) {
+  global $ldap;
+  $ret = null;
+
+  if (! $ldap) {
+    return;
+  }
+
+  $row = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
+  $dn = $row->binddn;
+  $pass = $row->bindpw;
+
+  $ldap->connect($dn, $pass);
+
+  $possible_base_dns = explode("\r\n", $ldap->getOption('basedn'));
+  foreach ($possible_base_dns as $base_dn) {
+    if( ! $base_dn) {
+      continue;
+    }
+
+    $name_attr = $ldap->getOption('user_attr') ? $ldap->getOption('user_attr') : LDAP_DEFAULT_USER_ATTRIBUTE;
+    $filter = "$name_attr=$name";
+    $result = $ldap->search($base_dn, $filter);
+    if ( ! $result) {
+      continue;
+    }
+
+    $num_matches = $result['count'];
+    // must find exactly one user for authentication to 
+    if ($num_matches != 1) {
+      watchdog('user', "Error: $num_matches users found with $filter under $base_dn", WATCHDOG_ERROR);
+      continue;
+    }
+
+    $match = $result[0];
+
+    // These lines serve to fix the attribute name in case a
+    // naughty server (i.e.: MS Active Directory) is messing the
+    // characters' case.
+    // This was contributed by Dan "Gribnif" Wilga, and described
+    // here: http://drupal.org/node/87833
+    if ( ! isset($match[$name_attr][0]) ) {
+      $name_attr = strtolower($name_attr);
+      if ( ! isset($match[$name_attr][0]) ) {
+        continue;
+      }
+    }
+
+    // Finally, we must filter out results with spaces added before
+    // or after, which are considered OK by LDAP but are no good for us
+    // We allow lettercase independence, as requested by Marc Galera
+    // on http://drupal.org/node/97728
+    //
+    // Some setups have multiple $name_attr per entry, as pointed out by
+    // Clarence "sparr" Risher on http://drupal.org/node/102008, so we
+    // loop through all possible options.
+    $ok = false;
+    foreach ($match[$name_attr] as $value) {
+      if (strtolower($value) == strtolower($name)) {
+        $ok = true;
+        break;
+      }
+    }
+    if ( ! $ok) {
+      continue;
+    }
+
+    $ret = $match;
+  }
+  return $ret;
+}
+
+
+/*********************************
+ *    4. Login process hacks     *
+ *********************************/
+ function ldapauth_form_alter($form_id, &$form) {
+  if (isset($form['#validate']['user_login_validate'])) {
+    $form['#validate'] = array('ldapauth_login_validate' => array());
+  }
+}
+
+function ldapauth_login_validate($form_id, $form_values) {
+  global $user;
+
+  if (isset($form_values['name'])) {
+    if (user_is_blocked($form_values['name'])) {
+      // blocked in user administration
+      form_set_error('login', t('The username %name has been blocked.', array('%name' => theme('placeholder', $form_values['name']))));
+    }
+    else if (drupal_is_denied('user', $form_values['name'])) {
+      // denied by access controls
+      form_set_error('login', t('The name %name is a reserved username.', array('%name' => theme('placeholder', $form_values['name']))));
+    }
+    else if ($form_values['pass']) {
+      // === HACK STARTS ===
+      // --- New code starts
+      $user = _ldapauth_user_authenticate($form_values['name'], trim($form_values['pass']));
+      // --- New code ends
+
+      // --- Drupal's original code starts
+      // $user = user_authenticate($form_values['name'], trim($form_values['pass']));
+      // --- Drupal's original code ends
+      // === HACK ENDS ===
+
+      if (!$user->uid) {
+        form_set_error('login', t('Sorry. Unrecognized username or password.') .' '. l(t('Have you forgotten your password?'), 'user/password'));
+        watchdog('user', t('Login attempt failed for %user: %error.', array('%user' => theme('placeholder', $form_values['name']))));
+      }
+    }
+  }
+}
+
+function _ldapauth_user_authenticate($name, $pass) {
+  global $user;
+  global $ldap;
+
+  if ( ! _ldapauth_is_ldap_login_only($name)) {
+    // Authenticate locally only if not initially authenticated by LDAP, or if configured to do so
+    $user = user_authenticate($name, $pass);
+  }
+
+  // If not successful, try LDAP authentication directly
+  if (!$user->uid) {
+    $result = db_query("SELECT name FROM {ldapauth} WHERE status = '%d' ORDER BY sid", 1);
+    while ($row = db_fetch_object($result)) {
+      // cycle thru the authentication schemes - first successful one wins
+      // instantiate ldap
+      _ldapauth_init($row->name);
+      $config_name = $ldap->getOption('name');
+      $user = _ldapauth_ldap_login($name, $pass); 
+      if ($user->uid) {
+        // obtain the DN for this user in this specific LDAP repository
+        $dn = _ldapauth_login2dn($name);
+        $user = user_save($user, array('ldap_dn' => $dn));
+        $_SESSION['ldap_login']['dn'] = $user->ldap_dn;
+        $_SESSION['ldap_login']['pass'] = $pass;
+        break; // break out of the auth check cycle
+      }
+    }
+  }
+  return $user;
+}
+
+function _ldapauth_is_ldap_login_only($name) {
+
+  // A design decision - 
+  // uid=1 (admin user) must always authenticate to local database
+  // this user is critical for all drupal admin and upgrade operations
+  $_result = db_query("SELECT uid FROM {users} WHERE name = '%s'", $name);
+  if (($_user = db_fetch_object($_result)) && ($_user->uid == 1)) {
+    return FALSE;
+  }
+  return variable_get('ldap_login_process', LDAP_FIRST_LDAP);
+}
+
+function _ldapauth_ldap_login($login_string, $pass) {
+  global $ldap;
+  global $user;
+  
+  // Strip name and server from ID:
+  if ($server = strrchr($login_string, '@')) {
+    $name = substr($login_string, 0, strlen($login_string) - strlen($server));
+    $server = substr($server, 1);
+  }
+  else {
+    $name = $login_string;
+    $server = '';
+  }
+
+  // This is in case somebody tries to log in as "jdoe@"
+  if (preg_match('/@$/', $login_string)) {
+    $name = $login_string;
+  }
+
+  if (ldapauth_auth($name, $pass, $server)) {
+    $account = user_load(array('name' => $login_string));
+    $tmp_user->name = $login_string;
+    if (!isset($account->uid)) {
+      
+      $dn = _ldapauth_login2dn($login_string);
+      
+      // Register this new user.
+      // Changes to this user_save():
+      //   1. 'pass' => in "LDAP then Drupal" mode, actual password
+      //                is written. In "LDAP only" mode, a random
+      //                password is set
+      if (variable_get('ldap_login_process', LDAP_FIRST_LDAP) == LDAP_FIRST_LDAP) {
+        $pass = user_password(20);
+      }
+      //   2. 'mail' => we cannot access the LDAP info from here, so
+      //                we just write anything as e-mail address. If
+      //                ldapdata module is enabled, it will write the
+      //                right value upon login
+      $mail = $dn;
+      //   3. 'init' => same. BTW: what's the use of this field?
+      $init = $dn;
+      //   4. 'ldap_authentified' => TRUE . There is a need to mark
+      //      people as externally authentified.
+      
+      // Here ldap_dn should not be set (as it was in the 4.7- versions). 
+      // The DN should be determined by the specific LDAP repo that is being used at login time
+      $user = user_save('', array('name' => $login_string, 'pass' => $pass, 'mail' => $mail, 'init' => $init, 'status' => 1, 'authname_ldapauth' => $login_string, 'roles' => array(DRUPAL_AUTHENTICATED_RID), 'ldap_authentified' => TRUE, 'ldap_dn' => $dn));
+      watchdog('user', t('New external user: %user using module %module.', array('%user' => theme('placeholder', $login_string), '%module' => theme('placeholder', 'ldapauth'))), WATCHDOG_NOTICE, l(t('edit'), 'user/'. $user->uid .'/edit'));
+    }
+    else if ( ! $account->ldap_authentified) {
+      drupal_set_message(t('Another user already exists in this system with the same login name. You should contact the system\'s administrator in order to solve this conflict.'), 'error');
+      watchdog('user', t("LDAP user with DN $dn has a naming conflict with non-LDAP user $account->name"), WATCHDOG_ERROR);
+      module_invoke_all('user', 'logout', NULL, $user);
+    }
+    else {
+      $user = $account;
+    }
+  }
+
+  return $user;
+}
+
+?>
