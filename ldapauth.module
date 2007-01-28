@@ -162,11 +162,12 @@ function ldapauth_admin_form() {
     '#collapsed' => FALSE,
     );
 
+  $_is_active = (arg(3) == "add") ? "1" : $edit['status'];
   $form['server-settings']['status'] = array(
     '#type' => 'checkbox',
     '#title' => t('Activate'),
     '#return_value' => 1,
-    '#default_value' => $edit['status'],
+    '#default_value' => $_is_active,
     '#description' => t('<p>Activate this directory source for authentication.</p>'),
     );
 

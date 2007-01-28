@@ -194,7 +194,7 @@ function ldapgroups_admin_edit($ldap_name) {
 
 function ldapgroups_admin_edit_submit($form_id, $form_values) {
   if ($form_values['confirm']) {
-    // reset the ldapgroups config to default values - in affect, deactive this config
+    // reset the ldapgroups config to default values - in effect, deactivate this config
     db_query("UPDATE {ldapauth} SET ldap_groups_in_dn = '%d', ldap_groups_in_dn_desc = '%d', ldap_group_dn_attribute = '%s', ldap_groups_in_attr = '%d', ldap_group_attr = '%s', ldap_groups_as_entries = '%d', ldap_group_entries = '%s', ldap_group_entries_attribute = '%s'  WHERE name = '%s'", '0', '0', '', '0', '', '0', '', '', $form_values['reset_ldap']);
     watchdog('ldap', t('ldapgroups: ldap config %config updated.' ,array('%config' => $form_values['reset_ldap'])));
   }
