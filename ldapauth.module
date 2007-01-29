@@ -108,6 +108,24 @@ function ldapauth_menu($may_cache) {
       'type' => MENU_CALLBACK,
       'access' => user_access('access administration pages'),
       );
+
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/activate',
+      'title' => t('Activate LDAP Source'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('ldapauth_admin_activate'),
+      'type' => MENU_CALLBACK,
+      'access' => user_access('access administration pages'),
+      );
+
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/deactivate',
+      'title' => t('De-Activate LDAP Source'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('ldapauth_admin_deactivate'),
+      'type' => MENU_CALLBACK,
+      'access' => user_access('access administration pages'),
+      );        
 	}
 	return $items;
 }
@@ -128,20 +146,52 @@ function ldapauth_cron() {
 
 function ldapauth_admin_list() {
 
-  $sql = "SELECT sid, name FROM {ldapauth} ORDER BY sid";
+  $sql = "SELECT sid, name, status FROM {ldapauth} ORDER BY sid";
   $result = db_query($sql);
   $rows = array();
   while ($row = db_fetch_object($result)) {
-    $rows[] = array($row->name, l(t('edit'), 'admin/settings/ldapauth/edit/'.$row->name), l(t('delete'), 'admin/settings/ldapauth/delete/'.$row->name)); 
+    if ($row->status) {
+      $link_text = "de-activate";
+      $link_comp = "deactivate";
+    }
+    else {
+      $link_text = "activate";
+      $link_comp = "activate";
+    }
+    $rows[] = array(
+      $row->name, 
+      l(t('edit'), 'admin/settings/ldapauth/edit/'.$row->name), 
+      l(t($link_text), 'admin/settings/ldapauth/'.$link_comp.'/'.$row->name),
+      l(t('delete'), 'admin/settings/ldapauth/delete/'.$row->name)
+      ); 
   }
   $header = array(
     t('LDAP Config'), 
     array(
-      'data' => t('Operations'), 
-      'colspan' => 2
+      'data' => t('Operations'),
+      'colspan' => '3'
       ) 
     );
   return theme('table', $header, $rows);
+}
+
+function ldapauth_admin_deactivate($ldap_name) {
+  $ldap_name = arg(4);
+  // de-activate the config
+  db_query("UPDATE {ldapauth} SET status = '%s'WHERE name = '%s'", "", $ldap_name);
+  drupal_set_message(t('LDAP Configuration %config has been de-activated.', array('%config' => $ldap_name)));
+  watchdog('ldap', t('ldapauth: ldap config %config de-activated.', array('%config' => $ldap_name)));
+  drupal_goto('admin/settings/ldapauth');
+}
+
+
+function ldapauth_admin_activate() {
+  $ldap_name = arg(4);
+  // activate the config
+  db_query("UPDATE {ldapauth} SET status = '%d'WHERE name = '%s'", "1", $ldap_name);
+  drupal_set_message(t('LDAP Configuration %config has been activated.', array('%config' => $ldap_name)));
+  watchdog('ldap', t('ldapauth: ldap config %config activated.', array('%config' => $ldap_name)));
+  drupal_goto('admin/settings/ldapauth'); 
 }
 
 function ldapauth_admin_form() {
@@ -161,7 +211,7 @@ function ldapauth_admin_form() {
     '#collapsible' => TRUE, 
     '#collapsed' => FALSE,
     );
-
+/**
   $_is_active = (arg(3) == "add") ? "1" : $edit['status'];
   $form['server-settings']['status'] = array(
     '#type' => 'checkbox',
@@ -170,6 +220,7 @@ function ldapauth_admin_form() {
     '#default_value' => $_is_active,
     '#description' => t('<p>Activate this directory source for authentication.</p>'),
     );
+    */
 
   $form['server-settings']['name'] = array(
     '#type' => 'textfield', 
@@ -322,17 +373,17 @@ function ldapauth_admin_form_submit($form_id, $form_values) {
       form_set_error( 'name', t('An LDAP config with that name already exists.'));
     }
 
-    db_query("INSERT INTO {ldapauth} (name, status, server, port, tls, encrypted, basedn, user_attr, binddn, bindpw) VALUES ('%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s')", $form_values['name'], $form_values['status'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw']);
+    db_query("INSERT INTO {ldapauth} (name, status, server, port, tls, encrypted, basedn, user_attr, binddn, bindpw) VALUES ('%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s')", $form_values['name'], 1, $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw']);
     drupal_set_message(t('LDAP Configuration %config has been added.', array('%config' => $form_values['name'])));
     watchdog('ldap', t('ldapauth: ldap config %config added.', array('%config' => $form_values['name'])));
   }
   else {
     if ( !$form_values['bindpw_clear'] && $form_values['bindpw']) {
-      db_query("UPDATE {ldapauth} SET name = '%s', status = '%d', server = '%s', port = '%d', tls = '%d', encrypted = '%d', basedn = '%s', user_attr = '%s', binddn = '%s', bindpw = '%s', bindpw_clear = '%d' WHERE name = '%s'", $form_values['name'], $form_values['status'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw'], $form_values['bindpw_clear'], $form_values['old-name']);
+      db_query("UPDATE {ldapauth} SET name = '%s', server = '%s', port = '%d', tls = '%d', encrypted = '%d', basedn = '%s', user_attr = '%s', binddn = '%s', bindpw = '%s', bindpw_clear = '%d' WHERE name = '%s'", $form_values['name'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw'], $form_values['bindpw_clear'], $form_values['old-name']);
     }
     else {
       // set the clear password switch
-      db_query("UPDATE {ldapauth} SET name = '%s', status = '%d', server = '%s', port = '%d', tls = '%d', encrypted = '%d', basedn = '%s', user_attr = '%s', binddn = '%s', bindpw_clear = '%d' WHERE name = '%s'", $form_values['name'], $form_values['status'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw_clear'], $form_values['old-name']);
+      db_query("UPDATE {ldapauth} SET name = '%s', server = '%s', port = '%d', tls = '%d', encrypted = '%d', basedn = '%s', user_attr = '%s', binddn = '%s', bindpw_clear = '%d' WHERE name = '%s'", $form_values['name'], $form_values['server'], $form_values['port'], $form_values['tls'], $form_values['encrypted'], $form_values['basedn'], $form_values['user_attr'], $form_values['binddn'], $form_values['bindpw_clear'], $form_values['old-name']);
     }
     drupal_set_message(t('LDAP Configuration %config has been updated.', array('%config' => $form_values['name'])));
     watchdog('ldap', t('ldapauth: ldap config %config updated.', array('%config' => $form_values['name'])));
@@ -461,6 +512,8 @@ function _ldapauth_init($config) {
   $ldap->setOption('encrypted', $row->encrypted);
   $ldap->setOption('basedn', $row->basedn);
   $ldap->setOption('user_attr', $row->user_attr);
+  
+  return;
 }
 
 
@@ -487,7 +540,8 @@ function _ldapauth_user_lookup($name) {
   $row = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
   $dn = $row->binddn;
   $pass = $row->bindpw;
-
+  
+  // If there is no BINDDN and BINDPW -- the connect will be an anonymous connect
   $ldap->connect($dn, $pass);
 
   $possible_base_dns = explode("\r\n", $ldap->getOption('basedn'));

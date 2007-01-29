@@ -36,7 +36,7 @@ function ldapgroups_help($section) {
       $output = t('Maps LDAP groups to Drupal roles for users authenticated via <strong>ldapauth</strong> module.');
       break;
     case 'admin/settings/ldapgroups':
-      return t('<p style="margin: 1em;"><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldapgroups.conf.php</em> in your Drupal install.</p>');
+      return t('<p style="margin: 1em;">Configure the Drupal Roles mappings with the LDAP Groups below. <br />Only the <strong>activated</strong> LDAP Configurations are listed. Additional LDAP Sources may be configured/enabled in the ' .l(t('LDAP Integration'), 'admin/settings/ldapauth') . ' administration area. </p><p style="margin: 1em;"><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldapgroups.conf.php</em> in your Drupal install.</p>');
       break;
   }
   return $output;
@@ -79,8 +79,9 @@ function ldapgroups_menu($may_cache) {
 }
 
 function ldapgroups_admin_list() {
-  $sql = "SELECT sid, name FROM {ldapauth} ORDER BY sid";
-  $result = db_query($sql);
+  //$sql = "SELECT sid, name FROM {ldapauth} WHERE ORDER BY sid";
+  //db_query("UPDATE {ldapauth} SET status = '%s'WHERE name = '%s'", "", $ldap_name);
+  $result = db_query("SELECT sid, name FROM {ldapauth} WHERE status = '%s' ORDER BY sid", 1);
   $rows = array();
   while ($row = db_fetch_object($result)) {
     $rows[] = array($row->name, l(t('edit'), 'admin/settings/ldapgroups/edit/'.$row->name), l(t('reset'), 'admin/settings/ldapgroups/reset/'.$row->name));
@@ -301,14 +302,22 @@ function _ldapgroups_detect_groups() {
     return false;
   }
 
+  // first try to connect with the stored user's DN and password
+  // If unsuccessful, connect with the BINDDN and BINDPW stored in the database for this config
+  
   $dn = isset($_SESSION['ldap_login']['dn']) ? $_SESSION['ldap_login']['dn'] : '';
   $pass = isset($_SESSION['ldap_login']['pass']) ? $_SESSION['ldap_login']['pass'] : '';
 
-  if ( ! $ldap->connect($dn, $pass)) {
-    watchdog('user', "User login: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
-    return false;
+  if (!$ldap->connect($dn, $pass)) {
+    $row = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
+    $dn = $row->binddn;
+    $pass = $row->bindpw;
+    if (!$ldap->connect($dn,$pass)) {
+      watchdog('user', "User login: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
+      return false;
+    }      
   }
-
+  
   // Strategy 1: group extracted from user's DN
   $dn_groups = array();
   if ($groups_in_dn && $dn_group_attr = $group_dn_attribute) {
