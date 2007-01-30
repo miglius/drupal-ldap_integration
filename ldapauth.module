@@ -687,7 +687,7 @@ function _ldapauth_user_authenticate($name, $pass) {
 function _ldapauth_check_ldap($name, $pass) {  
   global $ldap;
   
-  $login_ok = false;
+  $login_ok = false; 
   
   $result = db_query("SELECT name FROM {ldapauth} WHERE status = '%d' ORDER BY sid", 1);
   while ($row = db_fetch_object($result)) {
@@ -712,8 +712,8 @@ function _ldapauth_check_ldap($name, $pass) {
 
     if (ldapauth_auth($name, $pass, $server)) {
       $login_ok = true;
-    }    
-    break; // break out of the auth check cycle
+      break; // break out of the auth check cycle
+    }
   }
   
   return $login_ok;
