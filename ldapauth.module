@@ -667,7 +667,7 @@ function _ldapauth_user_authenticate($name, $pass) {
        // user does not exist in drupal - check ldap 
         if (_ldapauth_check_ldap($name, $pass)) {
           // login successful - user exists in LDAP
-          $user = _ldapauth_save_user($name);
+          $user = _ldapauth_save_user($name, $pass);
         }
       }
     }
@@ -677,7 +677,7 @@ function _ldapauth_user_authenticate($name, $pass) {
       // new ldap user in drupal
       if (_ldapauth_check_ldap($name, $pass)) {
         // Login successful - user exists in LDAP
-        $user = _ldapauth_save_user($name);
+        $user = _ldapauth_save_user($name, $pass);
       }
     }
   }
@@ -719,7 +719,7 @@ function _ldapauth_check_ldap($name, $pass) {
   return $login_ok;
 }
 
-function _ldapauth_save_user($login_string) {
+function _ldapauth_save_user($login_string, $pass) {
   global $user;
   
   $account = user_load(array('name' => $login_string));
