@@ -285,6 +285,7 @@ function ldapgroups_user_login(&$user) {
 function _ldapgroups_detect_groups() {
   global $ldap, $user;
 
+  msg_r("LDAP resource in ldapgroups_detect_groups: " . $ldap->getOption('name'));
   // Nothing to do if the user is not LDAP authentified
   // or there are no groups configured
 
