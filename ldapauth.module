@@ -211,16 +211,6 @@ function ldapauth_admin_form() {
     '#collapsible' => TRUE, 
     '#collapsed' => FALSE,
     );
-/**
-  $_is_active = (arg(3) == "add") ? "1" : $edit['status'];
-  $form['server-settings']['status'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Activate'),
-    '#return_value' => 1,
-    '#default_value' => $_is_active,
-    '#description' => t('<p>Activate this directory source for authentication.</p>'),
-    );
-    */
 
   $form['server-settings']['name'] = array(
     '#type' => 'textfield', 
@@ -242,10 +232,13 @@ function ldapauth_admin_form() {
     '#required' => TRUE,
     ); 
   
+  // workaround for a db schema screwup. If port is left blank, then next time the config is edited, 
+  // it will stick a 0 in it. -- not good.
+  $_port = ($edit['port'] == '0') ? "389" : $edit['port'];
   $form['server-settings']['port'] = array( 
     '#type' => 'textfield',
     '#title' => t('LDAP port'),
-    '#default_value' => $edit['port'],
+    '#default_value' => $_port,
     '#size' => 50,
     '#maxlength' => 255,
     '#description' => t('<p>The TCP/IP port on the above server which accepts LDAP connections. Must be an integer.</p>'),
