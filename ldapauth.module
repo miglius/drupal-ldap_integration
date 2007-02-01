@@ -647,29 +647,33 @@ function _ldapauth_user_authenticate($name, $pass) {
     $user = user_authenticate($name, $pass);
   }  
   else { 
+    // http://drupal.org/node/113884
     if (!variable_get('ldap_login_process', LDAP_FIRST_LDAP)) {
-      // check drupal authentication. 
-      // drupal core user_authenticate will try to invoke ldapauth_auth in itself
-      // since the ldap resource is not setup, it will and should return false
-      // otherwise, drupal will happily create a new user and not tag it as a ldap user!
+      // authenticate local users first
+      $local_user_count = db_num_rows(db_query("SELECT name FROM {users} WHERE data NOT LIKE '%%ldap\_authentified%%' AND name='%s'", $name));
+      if ($local_user_count > 0) {
+        // a local user with same name exists -- authenticate that user
+        
+        // drupal core user_authenticate will try to invoke ldapauth_auth in itself
+        // since the ldap resource is not setup, it will and should return false
+        // otherwise, drupal will happily create a new user and not tag it as a ldap user!
      
-      // nullify global ldap resource for good measure
-      $ldap = "";
-      $user = user_authenticate($name, $pass);
-      if (!$user->uid) {
-       // user does not exist in drupal - check ldap 
+        // nullify global ldap resource for good measure
+        $ldap = "";
+        $user = user_authenticate($name, $pass);
+      }
+      else {
+        // no such local user - check ldap       
         if (_ldapauth_check_ldap($name, $pass)) {
-          // login successful - user exists in LDAP
+          // login successful - user exists in LDAP - if not registered in LDAP, register; set cookie
           $user = _ldapauth_save_user($name, $pass);
         }
       }
     }
     else {
       // direct ldap authentication - check with ldap
-      // if user authentication is success and user does not exist in drupal, create a
-      // new ldap user in drupal
       if (_ldapauth_check_ldap($name, $pass)) {
-        // Login successful - user exists in LDAP
+        // login successful - user exists in LDAP - if not registered in LDAP, register; set cookie
         $user = _ldapauth_save_user($name, $pass);
       }
     }
