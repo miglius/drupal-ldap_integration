@@ -724,6 +724,7 @@ function _ldapauth_save_user($login_string, $pass) {
     //                is written. In "LDAP only" mode, a random
     //                password is set
     if (variable_get('ldap_login_process', LDAP_FIRST_LDAP) == LDAP_FIRST_LDAP) {
+      // generate a random generic password using drupal api
       $pass = user_password(20);
     }
     //   2. 'mail' => we cannot access the LDAP info from here, so
