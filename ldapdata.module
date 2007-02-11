@@ -167,8 +167,7 @@ function ldapdata_admin_edit($ldap_name) {
       );
 
     $form['ldap_attribute_mapping']['ldap-note'] = array(
-      //'#value' => t('<p style="margin: 1em;"><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldapdata.conf.php</em> in your Drupal install.</p>'),
-      '#value' => t('<p><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldapdata.conf.php</em> in your Drupal install.</p>'),
+      '#value' => t('<p><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldap_integration/ldapdata.conf.php</em> in your Drupal install.</p>'),
 
       );
 
@@ -177,7 +176,7 @@ function ldapdata_admin_edit($ldap_name) {
       '#title' => 'Should Drupal account fields be mapped to LDAP Attributes?',
       '#default_value' => $mappings['access'],
       '#options' => array(
-        LDAP_MAP_ATTRIBUTES => t('Changes in account fields will be mapped to LDAP attributes and back (see <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldapdata.conf.php</em>)'),
+        LDAP_MAP_ATTRIBUTES => t('Changes in account fields will be mapped to LDAP attributes and back (see <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldap_integration/ldapdata.conf.php</em>)'),
         LDAP_MAP_ATTRIBUTES_READ_ONLY => t('Same, but read-only mode.'),
         LDAP_MAP_NOTHING => t('No attribute mapping will be done at all (<strong><em>Clears any existing mappings</em></strong>)'),
         ),
