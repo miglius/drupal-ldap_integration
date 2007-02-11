@@ -1,0 +1,5 @@
+; $Id$
+name = ldapdata
+description = "Permits reading and editing of own's LDAP data for users authenticated via ldapauth module."
+package = Administration
+dependencies = ldapauth profile

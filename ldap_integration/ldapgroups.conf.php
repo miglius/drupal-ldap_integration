@@ -9,13 +9,17 @@
 //   - LDAP group: ou=Underlings,dc=myorg,dc=mytld => Drupal role: Underlings
 //   However, if this is not enough, this name mapping can be refined
 // by altering this array. Some examples are given.
+
+
 $GLOBALS['ldap_group_role_mappings'] = array(
   // LDAP group => Drupal role
   'cn=users,ou=Group,dc=example,dc=com' => 'Users',
   'cn=IT,ou=Group,dc=example,dc=com' => 'SiteAdmins'  
 );
 
-
+// Note: Uncommenting this function will limit the groups -> roles conversion to ONLY those groups that are 
+// specified in the function. 
+/*
 function ldapgroups_roles_filter($roles) { 
 	global $ldap_group_role_mappings; 
 	$newroles = array(); 
@@ -29,5 +33,7 @@ function ldapgroups_roles_filter($roles) {
 	}
 	return $newroles;;
 }
+*/
+
 
 ?>

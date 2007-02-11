@@ -14,8 +14,7 @@ define(LDAP_DEFAULT_ORG, 'LDAP Directory');
 define(LDAP_DEFAULT_BASE_DN, 'ou=Users,dc=drupal,dc=org');
 define(LDAP_DEFAULT_USER_ATTRIBUTE, 'sAMAccountName');
 
-$GLOBALS['ldap'] = array();
-
+$GLOBALS['ldap'] = new LDAPInterface();
 
 /*********************************
  *       1. Drupal hooks         *
@@ -450,8 +449,8 @@ function ldapauth_exit() {
 
 function ldapauth_user($op, &$edit, &$edit_user, $category = NULL) {
   global $user;
-  switch ($op) {
-    
+  
+  switch ($op) {    
     case 'login':
       // This is to convert from old ldap_integration to new ldapauth
       if ($user->ldap_authentified) {
@@ -459,15 +458,13 @@ function ldapauth_user($op, &$edit, &$edit_user, $category = NULL) {
         return;
       }
       break;
-
     case 'form':
       if (user_access('administer users')) {
         $form['ldap_settings'] = array(
           '#type' => 'fieldset',
           '#title' => 'LDAP authentication settings',
           '#collapsible' => TRUE,
-          );
-          
+          );         
         $form['ldap_settings']['ldap_authentified'] = array(
           '#type' => 'checkbox',
           '#title' => 'Authenticate via LDAP',
@@ -495,7 +492,7 @@ function _ldapauth_init($config) {
   global $ldap;	
 
   $row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE name = '%s'", $config)); 
-  $ldap = new LDAPInterface();
+  // $ldap = new LDAPInterface();
   $ldap->setOption('name', $row->name);
   $ldap->setOption('server', $row->server);
   $ldap->setOption('port', $row->port);
@@ -503,7 +500,6 @@ function _ldapauth_init($config) {
   $ldap->setOption('encrypted', $row->encrypted);
   $ldap->setOption('basedn', $row->basedn);
   $ldap->setOption('user_attr', $row->user_attr);
-  
   return;
 }
 
@@ -605,6 +601,7 @@ function _ldapauth_user_lookup($name) {
 
 function ldapauth_login_validate($form_id, $form_values) {
   global $user;
+  
 
   if (isset($form_values['name'])) {
     if (user_is_blocked($form_values['name'])) {
@@ -635,8 +632,7 @@ function ldapauth_login_validate($form_id, $form_values) {
 }
 
 function _ldapauth_user_authenticate($name, $pass) {  
-  global $user;
-  global $ldap;
+  global $user, $ldap;
 
   // (Design decision) uid=1 (admin user) must always authenticate to local database
   // this user is critical for all drupal admin and upgrade operations so it is best
@@ -717,7 +713,7 @@ function _ldapauth_check_ldap($name, $pass) {
 }
 
 function _ldapauth_save_user($login_string, $pass) {
-  global $user;
+  global $user, $ldap;
   
   $account = user_load(array('name' => $login_string));
   $dn = _ldapauth_login2dn($login_string);
@@ -756,11 +752,18 @@ function _ldapauth_save_user($login_string, $pass) {
   }
 
   // setup the cookies et al
-  // obtain the DN for this user in this specific LDAP repository
+  // We save the config that was used to authenticate the user in the user object.
+  // This will be used by ldapdata and other ldapXXX modules.
   
-  $_SESSION['ldap_login']['dn'] = $dn;
-  $_SESSION['ldap_login']['pass'] = $pass;  
+
+  $config_name = $ldap->getOption('name');
+  user_save($user, array('ldap_config' => $config_name));
     
+  // obtain the DN for this user in this specific LDAP repository  
+  $_SESSION['ldap_login']['dn'] = $dn;
+  $_SESSION['ldap_login']['pass'] = $pass;
+
+  
   return $user;
 }
 

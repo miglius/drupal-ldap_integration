@@ -43,3 +43,21 @@ function ldapauth_uninstall() {
   variable_del('ldap_forget_passwords');
   variable_del('ldap_login_process');
 }
+
+/** 
+ * Implementation of hook_update_N()
+ */
+
+function ldapauth_update_1() {
+  $ret = array();
+  if ($GLOBALS['db_type'] == 'mysql') {
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_binddn VARCHAR(255) NOT NULL default '' ");
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_bindpw VARCHAR(255) NOT NULL default '' ");
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '' ");
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_rwattrs LONGTEXT NOT NULL default '' "); 
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_roattrs LONGTEXT NOT NULL default '' "); 
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_mappings LONGTEXT NOT NULL default '' ");        
+  }
+  
+  return $ret;
+}

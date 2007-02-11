@@ -25,11 +25,11 @@ function ldapdata_attribute_filter(&$attributes) {
 // The 1st right hand elements in the array determine how the attribute and
 // its value are displayed. The first element may be 'text' or 'url'.
 $GLOBALS['ldap_attributes'] = array(
-//  'givenName'     => array('text', 'textfield', t('First Name'), 64, 64),
+  'givenName'     => array('text', 'textfield', t('First Name'), 64, 64),
   'sn'            => array('text', 'textfield', t('Last Name'), 64, 64), //aka Surname
   'cn'            => array('text', 'textfield', t('Common Name'), 64, 64),
 //  'homePage'      => array('url', 'textfield', t('Other web pages'), 64, 64),
-//  'mail'          => array('url', 'textfield', t('Email'), 64, 64)
+  'mail'          => array('url', 'textfield', t('Email'), 64, 64)
 );
 
 ?>

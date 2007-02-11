@@ -79,8 +79,6 @@ function ldapgroups_menu($may_cache) {
 }
 
 function ldapgroups_admin_list() {
-  //$sql = "SELECT sid, name FROM {ldapauth} WHERE ORDER BY sid";
-  //db_query("UPDATE {ldapauth} SET status = '%s'WHERE name = '%s'", "", $ldap_name);
   $result = db_query("SELECT sid, name FROM {ldapauth} WHERE status = '%s' ORDER BY sid", 1);
   $rows = array();
   while ($row = db_fetch_object($result)) {
@@ -225,7 +223,7 @@ function ldapgroups_user($op, &$edit, &$user, $category = NULL) {
 function ldapgroups_user_login(&$user) {
   global $ldap_group_role_mappings;
 
-  if ( ! $user->ldap_authentified) {
+  if (!$user->ldap_authentified) {
     return true;
   }
 

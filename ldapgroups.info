@@ -2,3 +2,4 @@
 name = ldapgroups
 description = "Integrated LDAP Groups with Drupal Roles"
 package = Administration
+dependencies = ldapauth
