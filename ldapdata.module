@@ -503,7 +503,7 @@ function ldapdata_user_load(&$user) {
 
 function ldapdata_user_profile_load(&$user) {
   global $ldap;
-    
+  
   $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($user->ldap_config);
   $ldap_drupal_mappings = array_flip($ldap_drupal_reverse_mappings);  
 
@@ -786,14 +786,16 @@ function _ldapdata_retrieve_standard_user_fields() {
 function _ldapdata_reverse_mappings($config) {
   
   $ret = array();
-
   $result = db_fetch_array(db_query("SELECT ldapdata_mappings FROM {ldapauth} WHERE name = '%s'", $config));
-  $mappings = unserialize($result['ldapdata_mappings']); 
-  foreach ($mappings as $key => $value) {
-    $drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key);
-    $ldap_attr = $value;
-    if ($drupal_key && $ldap_attr) {
-      $ret[$drupal_key] = $ldap_attr;
+  $mappings = unserialize($result['ldapdata_mappings']);
+  
+  if (is_array($mappings)) {
+    foreach ($mappings as $key => $value) {
+      $drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key);
+      $ldap_attr = $value;
+      if ($drupal_key && $ldap_attr) {
+        $ret[$drupal_key] = $ldap_attr;
+      }
     }
   }
   return $ret;
