@@ -32,6 +32,32 @@ function ldapauth_install() {
         KEY sid (sid)
       ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
       break;
+    case 'pgsql':
+      db_query("CREATE TABLE {ldapauth} (
+      sid SERIAL,
+      name VARCHAR(255) NOT NULL DEFAULT '',
+      status INTEGER NOT NULL DEFAULT 0,
+      server VARCHAR(255) NOT NULL DEFAULT '',
+      port INTEGER NOT NULL DEFAULT 389,
+      tls INTEGER NOT NULL DEFAULT 0,
+      encrypted INTEGER NOT NULL DEFAULT 0,
+      basedn VARCHAR(255) NOT NULL DEFAULT '',
+      user_attr VARCHAR(255) NOT NULL DEFAULT '',
+      binddn VARCHAR(255) NOT NULL DEFAULT '',
+      bindpw VARCHAR(255) NOT NULL DEFAULT '',
+      bindpw_clear VARCHAR(255) NOT NULL DEFAULT '',
+      ldap_groups_in_dn INTEGER NOT NULL DEFAULT 0,
+      ldap_groups_in_dn_desc INTEGER NOT NULL DEFAULT 0,
+      ldap_group_dn_attribute VARCHAR(255) DEFAULT '',
+      ldap_group_attr VARCHAR(255) DEFAULT '',
+      ldap_groups_in_attr INTEGER NOT NULL DEFAULT 0,
+      ldap_groups_as_entries INTEGER NOT NULL DEFAULT 0,
+      ldap_group_entries VARCHAR(255) DEFAULT '',
+      ldap_group_entries_attribute VARCHAR(255) DEFAULT '',
+      PRIMARY KEY (name)
+      )"); 
+      db_query("CREATE INDEX {ldapauth}_sid_idx ON {ldapauth} (sid)");
+      break;      
   }
 }
 
@@ -51,12 +77,20 @@ function ldapauth_uninstall() {
 function ldapauth_update_1() {
   $ret = array();
   if ($GLOBALS['db_type'] == 'mysql') {
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_binddn VARCHAR(255) NOT NULL default '' ");
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_bindpw VARCHAR(255) NOT NULL default '' ");
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '' ");
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_rwattrs LONGTEXT NOT NULL default '' "); 
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_roattrs LONGTEXT NOT NULL default '' "); 
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_mappings LONGTEXT NOT NULL default '' ");        
+    $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_binddn VARCHAR(255) NOT NULL default '' ");
+    $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_bindpw VARCHAR(255) NOT NULL default '' ");
+    $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '' ");
+    $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_rwattrs LONGTEXT NOT NULL default '' "); 
+    $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_roattrs LONGTEXT NOT NULL default '' "); 
+    $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_mappings LONGTEXT NOT NULL default '' ");        
+  }
+  elseif ($GLOBALS['db_type'] == 'pgsql') {
+    $ret[] = db_add_column("ALTER TABLE {ldapauth} ADD ldapdata_binddn VARCHAR(255) NOT NULL default '' ");
+    $ret[] = db_add_column("ALTER TABLE {ldapauth} ADD ldapdata_bindpw VARCHAR(255) NOT NULL default '' ");
+    $ret[] = db_add_column("ALTER TABLE {ldapauth} ADD ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '' ");
+    $ret[] = db_add_column("ALTER TABLE {ldapauth} ADD ldapdata_rwattrs TEXT NOT NULL default '' "); 
+    $ret[] = db_add_column("ALTER TABLE {ldapauth} ADD ldapdata_roattrs TEXT NOT NULL default '' "); 
+    $ret[] = db_add_column("ALTER TABLE {ldapauth} ADD ldapdata_mappings TEXT NOT NULL default '' ");    
   }
   
   return $ret;
