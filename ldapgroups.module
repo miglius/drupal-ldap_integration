@@ -36,7 +36,7 @@ function ldapgroups_help($section) {
       $output = t('Maps LDAP groups to Drupal roles for users authenticated via <strong>ldapauth</strong> module.');
       break;
     case 'admin/settings/ldapgroups':
-      return t('<p style="margin: 1em;">Configure the Drupal Roles mappings with the LDAP Groups below. <br />Only the <strong>activated</strong> LDAP Configurations are listed. Additional LDAP Sources may be configured/enabled in the ' .l(t('LDAP Integration'), 'admin/settings/ldapauth') . ' administration area. </p><p style="margin: 1em;"><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldapgroups.conf.php</em> in your Drupal install.</p>');
+      return t('<p style="margin: 1em;">Configure the Drupal Roles mappings with the LDAP Groups below. <br />Only the <strong>activated</strong> LDAP Configurations are listed. Additional LDAP Sources may be configured/enabled in the ' .l(t('LDAP Integration'), 'admin/settings/ldapauth') . ' administration area. </p><p style="margin: 1em;"><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldap_integration/ldapgroups.conf.php</em> in your Drupal install.</p>');
       break;
   }
   return $output;
