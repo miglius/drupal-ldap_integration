@@ -247,9 +247,12 @@ function ldapgroups_user_login(&$user) {
   }
 
   // Finally, we grant the roles
-  foreach ($roles as $role) {
-    _ldapgroups_create_role($role);
-    _ldapgroups_grant_role($user, $role);
+  //need to check for empty roles
+  if ($roles) {
+    foreach ($roles as $role) {
+      _ldapgroups_create_role($role);
+      _ldapgroups_grant_role($user, $role);
+    }
   }
 
   // Store roles in the user object so we know which ones
