@@ -241,27 +241,9 @@ function ldapgroups_user_login(&$user) {
     return true;
   }
 
-  // Now we give them friendly names
-  $roles = array();
-  foreach ($groups as $group) {
-    if ($role = $ldap_group_role_mappings[$group]) {
-      // Just that
-    }
-    else if (preg_match('/^[^=]*=([^,]*),.*$/', $group, $matches)) {
-      $role = $matches[1];
-    }
-    else {
-      $role = $group;
-    }
-
-    if ($role) {
-      $roles[] = $role;
-    }
-  }
-
   // Next, we apply site-specific rules
   if (function_exists('ldapgroups_roles_filter')) {
-    $roles = ldapgroups_roles_filter($roles);
+    $roles = ldapgroups_roles_filter($groups);
   }
 
   // Finally, we grant the roles
