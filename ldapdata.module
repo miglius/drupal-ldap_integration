@@ -700,12 +700,14 @@ function ldapdata_user_view(&$user) {
   
   $allowed_attrs = _ldapdata_ldap_info($user, 'ldapdata_roattrs');
 
-  foreach($allowed_attrs as $attribute) {
-    $item = array();
-    $item['title'] = $ldap_attributes[$attribute][2];
-    $item['value'] = theme('ldapdata_ldap_attribute', $entry[strtolower($attribute)][0], $ldap_attributes[$attribute][0]);
-    $item['class'] = 'attribute';
-    $ret[LDAP_SETTINGS_GROUP_STRING][] = $item;
+  if ($allowed_attrs) {
+    foreach($allowed_attrs as $attribute) {
+      $item = array();
+      $item['title'] = $ldap_attributes[$attribute][2];
+      $item['value'] = theme('ldapdata_ldap_attribute', $entry[strtolower($attribute)][0], $ldap_attributes[$attribute][0]);
+      $item['class'] = 'attribute';
+      $ret[LDAP_SETTINGS_GROUP_STRING][] = $item;
+    }
   }
 
   $ldap->disconnect();
