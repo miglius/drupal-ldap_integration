@@ -20,18 +20,21 @@ $GLOBALS['ldap_group_role_mappings'] = array(
 // Note: Uncommenting this function will limit the groups -> roles conversion to ONLY those groups that are 
 // specified in the function. 
 /*
-function ldapgroups_roles_filter($roles) { 
-	global $ldap_group_role_mappings; 
-	$newroles = array(); 
-	// this should take the roles array, pass it thru the filters and send a NEW set of roles back 
-	// the filter 
-	foreach ( $roles as $role ) { 
-		if ( array_search($role, $ldap_group_role_mappings) != FALSE ) { 
-			// this role is specified -- grant 
-			$newroles[] = $role; 
-		}
-	}
-	return $newroles;;
+function ldapgroups_roles_filter($groups) { 
+  global $ldap_group_role_mappings; 
+  $roles = array(); 
+  // this should take the roles array, pass it thru the filters and send a NEW set of roles back the filter 
+  foreach ( $groups as $group ) { 
+    foreach ($ldap_group_role_mappings as $approved_group => $approved_role) {
+      // msg_r("matching $key to $role<br>");
+      if (strcasecmp($approved_group, $group) == 0) {
+        // this role is specified -- grant
+        // msg_r("matched an approved group: $approved_group");
+	   $roles[] = $approved_role;
+      }
+    }
+  }
+  return $roles;
 }
 */
 
