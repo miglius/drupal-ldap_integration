@@ -5,7 +5,7 @@ class LDAPInterface {
 
   function LDAPInterface() {
     $this->connection = null;
-    $this->server = "localhost";
+    $this->server = "example.com";
     $this->port = "389";
     $this->secretKey = NULL;
     $this->useTLS = false;
