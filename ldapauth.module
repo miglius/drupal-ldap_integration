@@ -745,7 +745,7 @@ function _ldapauth_save_user($login_string, $pass) {
   }
   else if (!$account->ldap_authentified) {
     drupal_set_message(t('Another user already exists in this system with the same login name. You should contact the system\'s administrator in order to solve this conflict.'), 'error');
-    watchdog('user', t("LDAP user with DN $dn has a naming conflict with non-LDAP user $account->name"), WATCHDOG_ERROR);
+    watchdog('user', t('LDAP user with DN %dn has a naming conflict with non-LDAP user %account', array('%dn' => theme('placeholder', $dn), '%account' => theme('placeholder', $account->name))), WATCHDOG_ERROR);    
     module_invoke_all('user', 'logout', NULL, $user);
   }
   else {

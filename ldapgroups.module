@@ -175,7 +175,7 @@ function ldapgroups_admin_edit($ldap_name) {
       '#default_value' => $edit['ldap_group_entries_attribute'],
       '#size' => 50, 
       '#maxlength' => 255, 
-      '#description' => t('Name of the multivalued attribute which holds the CNs of group members, for example: <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">' . LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE . '</em>.'),
+      '#description' => t('Name of the multivalued attribute which holds the CNs of group members, for example: !attr', array('!attr' => theme('placeholder', LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE))),
       );
             
     $form['config_name'] = array(

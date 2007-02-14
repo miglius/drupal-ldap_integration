@@ -411,7 +411,7 @@ function ldapdata_user_categories(&$user) {
     $ret = array(
       array(
         'name' => LDAP_CATEGORY_USER_DATA,
-        'title' => t(LDAP_USER_DATA_EDIT_TAB),
+        'title' => LDAP_USER_DATA_EDIT_TAB,
         'weight' => 50
         )
       );
