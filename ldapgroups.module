@@ -241,6 +241,9 @@ function ldapgroups_user_login(&$user) {
     return true;
   }
 
+  // grant all the roles 
+  $roles = $groups;
+  
   // Next, we apply site-specific rules
   if (function_exists('ldapgroups_roles_filter')) {
     $roles = ldapgroups_roles_filter($groups);
