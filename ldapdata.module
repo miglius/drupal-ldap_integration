@@ -52,6 +52,7 @@ function ldapdata_help($section) {
 **/
 
 function ldapdata_user($op, &$edit, &$user, $category = NULL) {
+
   switch($op) {
     case 'categories':
       return ldapdata_user_categories($user);
@@ -433,7 +434,7 @@ function ldapdata_user_form(&$user, $category) {
       (!$attributes)) {
     return null;   
   }
-  
+
   $bind_info = _ldapdata_edition($user);  
   if (!$ldap->connect($bind_info[0], $bind_info[1])) {
     watchdog('user', "User form: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
@@ -441,7 +442,6 @@ function ldapdata_user_form(&$user, $category) {
   }
   
   $entry = $ldap->retrieveAttributes($user->ldap_dn);
-
   $output = '';
   $form['ldap_attributes'] = array(
     '#title' => LDAP_SETTINGS_GROUP_STRING,
@@ -449,7 +449,6 @@ function ldapdata_user_form(&$user, $category) {
     );
 
   foreach ($attributes as $attribute) {
-
     $attr_info = $ldap_attributes[$attribute];
     if ($attr_info) {
       array_shift($attr_info);
@@ -465,6 +464,12 @@ function ldapdata_user_form(&$user, $category) {
 
 function ldapdata_user_load(&$user) {
   global $ldap;
+    
+  // setup the global $ldap object
+  if (!_ldapdata_ldap_init($user)) {
+    msg_r("screwed up");
+    return;
+  }
   
   $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
 
@@ -480,7 +485,6 @@ function ldapdata_user_load(&$user) {
     watchdog('user', "User load: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
     return;
   }
-
   $entry = $ldap->retrieveAttributes($user->ldap_dn);
    if ($entry) {
     $ldap_drupal_mappings = array_flip(_ldapdata_reverse_mappings($user->ldap_config));
@@ -867,6 +871,26 @@ function _ldapdata_ldap_info(&$user, $req ) {
   
   return $ret;
 }
+
+function _ldapdata_ldap_init(&$user) {
+  global $ldap;
+  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '%s' AND name = '%s'", 1, $user->ldap_config))) {
+    $ldap = new LDAPInterface();
+    $ldap->setOption('name', $row->name);
+    $ldap->setOption('server', $row->server);
+    $ldap->setOption('port', $row->port);
+    $ldap->setOption('tls', $row->tls);
+    $ldap->setOption('encrypted', $row->encrypted);
+    $ldap->setOption('basedn', $row->basedn);
+    $ldap->setOption('user_attr', $row->user_attr);
+    return $ldap;
+  }
+  else {
+    return;
+  }  
+}
+
+
 
 /*********************************
  *          4. Themes            *
