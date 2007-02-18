@@ -11,7 +11,7 @@ define(LDAP_SETTINGS_GROUP_STRING, t('LDAP attributes'));
 define(LDAP_USER_DATA_EDIT_TAB, t('LDAP entry'));
 define(LDAP_CATEGORY_USER_DATA, 'ldap_user_data');
 
-// Changed the values to be more unix-line. 6 = rw, 4 = ro, 0 = nothing
+// Changed the values to be more unix-line. 6 = rw, 4 = ro, 2 = nothing
 define(LDAP_MAP_ATTRIBUTES, 6);
 define(LDAP_MAP_ATTRIBUTES_READ_ONLY, 4);
 define(LDAP_MAP_NOTHING, 2);
@@ -467,7 +467,6 @@ function ldapdata_user_load(&$user) {
     
   // setup the global $ldap object
   if (!_ldapdata_ldap_init($user)) {
-    msg_r("screwed up");
     return;
   }
   
