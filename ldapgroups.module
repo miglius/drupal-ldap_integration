@@ -241,18 +241,32 @@ function ldapgroups_user_login(&$user) {
     return true;
   }
 
-  // grant all the roles 
-  $roles = $groups;
   
   // Next, we apply site-specific rules
   if (function_exists('ldapgroups_roles_filter')) {
     $roles = ldapgroups_roles_filter($groups);
   }
+  else {
+    // grant all the roles
+    $roles = $groups;    
+  }
+  
+  // At this point, the roles are in the full DN format
+  // Turn them in into friendly names
 
   // Finally, we grant the roles
   //need to check for empty roles
   if ($roles) {
     foreach ($roles as $role) {
+      if ($friendly_role = $ldap_group_role_mappings[$role]) {
+        // Just that
+      }
+      else if (preg_match('/^[^=]*=([^,]*),.*$/', $role, $matches)) {
+        $friendly_role = $matches[1];
+      }
+      else {
+        $friendly_role = $role;
+      }
       _ldapgroups_create_role($role);
       _ldapgroups_grant_role($user, $role);
     }
