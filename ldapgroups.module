@@ -241,7 +241,6 @@ function ldapgroups_user_login(&$user) {
     return true;
   }
 
-  
   // Next, we apply site-specific rules
   if (function_exists('ldapgroups_roles_filter')) {
     $roles = ldapgroups_roles_filter($groups);
@@ -267,8 +266,8 @@ function ldapgroups_user_login(&$user) {
       else {
         $friendly_role = $role;
       }
-      _ldapgroups_create_role($role);
-      _ldapgroups_grant_role($user, $role);
+      _ldapgroups_create_role($friendly_role);
+      _ldapgroups_grant_role($user, $friendly_role);
     }
   }
 
