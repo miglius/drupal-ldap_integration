@@ -245,10 +245,10 @@ function ldapauth_admin_form() {
 
   $form['server-settings']['tls'] = array(
     '#type' => 'checkbox', 
-    '#title' => t('Use TLS encryption'), 
+    '#title' => t('Use Start-TLS'), 
     '#return_value' => 1, 
     '#default_value' => $edit['tls'],
-    '#description' => t('<p>Secure the connection between the Drupal and the LDAP servers using TLS.</p>'),
+    '#description' => t('<p>Secure the connection between the Drupal and the LDAP servers using TLS.<br /><em>Note: To use START-TLS, you must set the LDAP Port to 389.</em></p>'),
 	); 
 
   $form['server-settings']['encrypted'] = array(

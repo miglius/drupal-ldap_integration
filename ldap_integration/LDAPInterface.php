@@ -8,7 +8,7 @@ class LDAPInterface {
     $this->server = "example.com";
     $this->port = "389";
     $this->secretKey = NULL;
-    $this->useTLS = false;
+    $this->tls = false;
     $this->attr_filter = array('LDAPInterface', '__empty_attr_filter');
   }
 
