@@ -6,15 +6,15 @@ include_once('ldap_integration/libdebug.php');
 include_once('ldap_integration/LDAPInterface.php');
 
 // Private constants. Do not touch
-define(LDAP_GROUP_IN_DN, 'ldap_groups_in_dn');
-define(LDAP_GROUP_IN_ATTR, 'ldap_groups_in_attr');
-define(LDAP_GROUP_AS_ENTRIES, 'ldap_groups_as_entries');
+define('LDAP_GROUP_IN_DN', 'ldap_groups_in_dn');
+define('LDAP_GROUP_IN_ATTR', 'ldap_groups_in_attr');
+define('LDAP_GROUP_AS_ENTRIES', 'ldap_groups_as_entries');
 
 // Private constants (default values). Do not touch either
-define(LDAP_DEFAULT_GROUP_DN_ATTRIBUTE, 'ou');
-define(LDAP_DEFAULT_GROUP_ATTR, 'userGroups');
-define(LDAP_DEFAULT_GROUP_ENTRIES, 'cn=Group,dc=example,dc=com');
-define(LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE, 'memberUid');
+define('LDAP_DEFAULT_GROUP_DN_ATTRIBUTE', 'ou');
+define('LDAP_DEFAULT_GROUP_ATTR', 'userGroups');
+define('LDAP_DEFAULT_GROUP_ENTRIES', 'cn=Group,dc=example,dc=com');
+define('LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE', 'memberUid');
 
 
 /*********************************

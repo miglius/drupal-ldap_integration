@@ -6,13 +6,13 @@ include_once('ldap_integration/libdebug.php');
 include_once('ldap_integration/LDAPInterface.php');
 
 // Private constants. Do not touch
-define(LDAP_FIRST_DRUPAL, 0);
-define(LDAP_FIRST_LDAP, 1);
+define('LDAP_FIRST_DRUPAL', 0);
+define('LDAP_FIRST_LDAP', 1);
 
 // Private constants (default values). Do not touch either
-define(LDAP_DEFAULT_ORG, 'LDAP Directory');
-define(LDAP_DEFAULT_BASE_DN, 'ou=Users,dc=drupal,dc=org');
-define(LDAP_DEFAULT_USER_ATTRIBUTE, 'sAMAccountName');
+define('LDAP_DEFAULT_ORG', 'LDAP Directory');
+define('LDAP_DEFAULT_BASE_DN', 'ou=Users,dc=drupal,dc=org');
+define('LDAP_DEFAULT_USER_ATTRIBUTE', 'sAMAccountName');
 
 $GLOBALS['ldap'] = new LDAPInterface();
 

@@ -7,14 +7,14 @@ include_once('ldap_integration/LDAPInterface.php');
 
 
 // Private constants. Do not touch
-define(LDAP_SETTINGS_GROUP_STRING, t('LDAP attributes'));
-define(LDAP_USER_DATA_EDIT_TAB, t('LDAP entry'));
-define(LDAP_CATEGORY_USER_DATA, 'ldap_user_data');
+define('LDAP_SETTINGS_GROUP_STRING', t('LDAP attributes'));
+define('LDAP_USER_DATA_EDIT_TAB', t('LDAP entry'));
+define('LDAP_CATEGORY_USER_DATA', 'ldap_user_data');
 
 // Changed the values to be more unix-line. 6 = rw, 4 = ro, 2 = nothing
-define(LDAP_MAP_ATTRIBUTES, 6);
-define(LDAP_MAP_ATTRIBUTES_READ_ONLY, 4);
-define(LDAP_MAP_NOTHING, 2);
+define('LDAP_MAP_ATTRIBUTES', 6);
+define('LDAP_MAP_ATTRIBUTES_READ_ONLY', 4);
+define('LDAP_MAP_NOTHING', 2);
 
 if (function_exists('ldapdata_attribute_filter')) {
   $GLOBALS['ldap']->setOption('attr_filter', 'ldapdata_attribute_filter');
