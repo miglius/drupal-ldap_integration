@@ -160,7 +160,7 @@ function ldapauth_admin_list() {
     $rows[] = array(
       $row->name, 
       l(t('edit'), 'admin/settings/ldapauth/edit/'.$row->name), 
-      l(t($link_text), 'admin/settings/ldapauth/'.$link_comp.'/'.$row->name),
+      l(t('%link_text', array('%link_text' => $link_text)), 'admin/settings/ldapauth/'.$link_comp.'/'.$row->name),
       l(t('delete'), 'admin/settings/ldapauth/delete/'.$row->name)
       ); 
   }
