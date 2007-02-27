@@ -523,8 +523,8 @@ function ldapdata_user_profile_load(&$user) {
   // Write coincidences to Drupal DB
   foreach ($writeout as $field => $value) {
     $result = db_fetch_array(db_query("SELECT fid FROM {profile_fields} WHERE name = '%s'", $field));
-    $fid = $result->fid;
-    $uid = $user->uid;
+    $fid = $result['fid'];
+    $uid = $user['uid'];
     // does the user have a value for this field ? then update it : otherwise create it
     $result = db_fetch_array(db_query("SELECT value FROM {profile_values} WHERE fid = '%d' AND uid = '%d'", $fid, $uid));
     if ($result) {
