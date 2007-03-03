@@ -15,8 +15,9 @@ function ldapauth_install() {
 				port int(10) NOT NULL default '389',
 				tls int NOT NULL default '0',
 				encrypted int NOT NULL default '0',
-				basedn varchar(255) NOT NULL default '',
+				basedn text(1000) NOT NULL default '',
 				user_attr varchar(255) NOT NULL default '',
+				mail_attr VARCHAR(255) NOT NULL DEFAULT '',
 				binddn varchar(255) NOT NULL default '',
 				bindpw varchar(255) NOT NULL default '',
 				bindpw_clear varchar(255) NOT NULL default '',
@@ -32,7 +33,7 @@ function ldapauth_install() {
         KEY sid (sid)
       ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
       break;
-    case 'pgsql':
+      case 'pgsql':
       db_query("CREATE TABLE {ldapauth} (
       sid SERIAL,
       name VARCHAR(255) NOT NULL DEFAULT '',
@@ -41,8 +42,9 @@ function ldapauth_install() {
       port INTEGER NOT NULL DEFAULT 389,
       tls INTEGER NOT NULL DEFAULT 0,
       encrypted INTEGER NOT NULL DEFAULT 0,
-      basedn VARCHAR(255) NOT NULL DEFAULT '',
+      basedn TEXT(1000) NOT NULL DEFAULT '',
       user_attr VARCHAR(255) NOT NULL DEFAULT '',
+			mail_attr VARCHAR(255) NOT NULL DEFAULT '',
       binddn VARCHAR(255) NOT NULL DEFAULT '',
       bindpw VARCHAR(255) NOT NULL DEFAULT '',
       bindpw_clear VARCHAR(255) NOT NULL DEFAULT '',
@@ -68,6 +70,10 @@ function ldapauth_uninstall() {
   db_query('DROP TABLE {ldapauth}');
   variable_del('ldap_forget_passwords');
   variable_del('ldap_login_process');
+  variable_del('ldap_allow_request_new_password');
+  variable_del('ldap_user_pass_form');
+  variable_del('ldap_allow_user_reset_password');
+  
 }
 
 /** 
@@ -93,6 +99,22 @@ function ldapauth_update_1() {
       $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_rwattrs TEXT NOT NULL default '' "); 
       $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_roattrs TEXT NOT NULL default '' "); 
       $ret[] = update_sql("ALTER TABLE {ldapauth} ADD ldapdata_mappings TEXT NOT NULL default '' ");
+      break;    
+    }
+  return $ret;
+}
+
+function ldapauth_update_2() {
+  $ret = array();
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD mail_attr VARCHAR(255) NOT NULL default '' AFTER user_attr ");
+      $ret[] = update_sql("ALTER TABLE {ldapauth} MODIFY basedn TEXT(1000) NOT NULL default '' ");
+      break;
+    case 'pgsql':
+      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD mail_attr VARCHAR(255) NOT NULL default '' AFTER user_attr ");
+      $ret[] = update_sql("ALTER TABLE {ldapauth} MODIFY basedn TEXT(1000) NOT NULL default '' ");
       break;    
     }
   return $ret;

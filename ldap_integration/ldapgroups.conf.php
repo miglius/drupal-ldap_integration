@@ -26,7 +26,7 @@ function ldapgroups_roles_filter($groups) {
   global $ldap_group_role_mappings; 
   $roles = array(); 
   // this should take the roles array, pass it thru the filters and send a NEW set of roles back the filter 
-  foreach ( $groups as $group ) {
+  foreach ( $groups as $group ) { 
     foreach ($ldap_group_role_mappings as $approved_group => $approved_role) {
        // must strip spaces ?
        $group_stripped = preg_replace('/\s+/', '', $group);
@@ -39,7 +39,6 @@ function ldapgroups_roles_filter($groups) {
   }
   return $roles;
 }
-
 
 
 ?>

@@ -49,6 +49,9 @@ class LDAPInterface {
 			case 'basedn':
 				$this->basedn = $value;
 				break;
+			case 'mail_attr':
+			  $this->mail_attr = $value;
+			  break;
 		}
   }
 
@@ -80,6 +83,9 @@ class LDAPInterface {
 			case 'basedn':
 				$ret = $this->basedn;
 				break;
+			case 'mail_attr':
+			  $ret = $this->mail_attr;
+			  break;
 		}
 		return $ret;
   }
