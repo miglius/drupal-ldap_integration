@@ -9,7 +9,13 @@ include_once('ldap_integration/LDAPInterface.php');
 define('LDAP_FIRST_DRUPAL', 0);
 //define('LDAP_OR_DRUPAL',1);
 define('LDAP_FIRST_LDAP', 1);
-
+define('LDAP_RESET_FORM_NO', 0);
+define('LDAP_RESET_FORM_OVERWRITE', 1);
+define('LDAP_RESET_FORM_MERGE', 2);
+define('LDAP_EMAIL_FIELD_NO', 0);
+define('LDAP_EMAIL_FIELD_REMOVE', 1);
+define('LDAP_EMAIL_FIELD_DISABLE', 2);
+    
 // Private constants (default values). Do not touch either
 define('LDAP_DEFAULT_ORG', 'LDAP Directory');
 define('LDAP_DEFAULT_BASE_DN', 'ou=Users,dc=drupal,dc=org');
@@ -206,7 +212,7 @@ function ldapauth_admin_activate() {
 }
 
 function ldapauth_admin_options() {
-  $script = '
+  /*$script = '
 		$(document).ready( function(){
 			$("input#edit-ldap-disable-request-new-password").click( function(){	
 				$("textarea#edit-ldap-user-pass-form").attr("disabled", (! $(this).attr("checked")));
@@ -216,7 +222,7 @@ function ldapauth_admin_options() {
 			});
 		})';
 	
-  drupal_add_js($script, 'inline');
+  drupal_add_js($script, 'inline');*/
   
 	$options_login_process = array( 
     LDAP_FIRST_DRUPAL => t('Drupal\'s DB first, then LDAP directory'),
@@ -227,15 +233,14 @@ function ldapauth_admin_options() {
   $form['system-options'] = array( 
     '#type' => 'fieldset', 
     '#title' => t('Authentication mode'),
-    '#description' => t('<p><strong>NOTE: These settings have no effect on Drupal user with uid 1. The admin account never uses LDAP.</p>'), 
+    '#description' => t('<p><strong>NOTE:</strong> These settings have no effect on Drupal user with uid 1. The admin account never uses LDAP.</p>'), 
     '#collapsible' => TRUE, 
-    '#collapsed' => FALSE,
+    '#collapsed' => TRUE,
   );
 
   $form['system-options']['ldap_login_process'] = array( 
     '#type' => 'radios', 
     '#title' => t('Choose authentication mode'),
-//    '#description' => t('<p>Pick the mode based on the types of user accounts and other configuration decisions.  For example the first and second modes both support LDAP and Drupal users simultaneously. The difference has to do with whether the LDAP user can login on the "stub" account, if say the original LDAP account were removed. While the third option only supports LDAP users. Please see the online docs for more info on advanced configurations.</p>'), 
     '#description' => t('<p>Pick the mode based on the types of user accounts and other configuration decisions...</p>'), 
     '#default_value' => variable_get('ldap_login_process', LDAP_FIRST_DRUPAL),
     '#options' => $options_login_process, 
@@ -243,10 +248,11 @@ function ldapauth_admin_options() {
 	);
 
   $form['security-options'] = array( 
-    '#type' => 'fieldset', 
+    '#type' => 'fieldset',
     '#title' => t('Security Options'),
     '#collapsible' => TRUE, 
-    '#collapsed' => FALSE,
+    '#description' => t('<p>If you use the <strong>ldapdata</strong> module and want to allow users to modify their LDAP attributes, you have two options:</p><ul><li>Setup a special ldap manager DN that has (limited) permissions to edit the requisite LDAP records - using this method means Drupal\'s built in password reset will work;</li> <li>or allow this module to store the user\'s LDAP password, in clear text, during the session;</li></ul><p>Physically, these passwords are stored in the Drupal\'s session table in clear text. This is not ideal and is not the recomended configuration.</p><p>Unless you need to use the latter configuration, leave this checked.</p>'),
+    '#collapsed' => TRUE,
   );
   
   $form['security-options']['ldap_forget_passwords'] = array(
@@ -254,42 +260,77 @@ function ldapauth_admin_options() {
     '#title' => t('Do not store users\' passwords during sessions'), 
     '#return_value' => true, 
     '#default_value' => variable_get('ldap_forget_passwords', true),
-    '#description' => t('<p>If you use the <strong>ldapdata</strong> module and want to allow users to modify their LDAP attributes, you have two options:</p><ul><li>Setup a special ldap manager DN that has (limited) permissions to edit the requisite LDAP records - using this method means Drupal\'s built in password reset will work;</li> <li>or allow this module to store the user\'s LDAP password, in clear text, during the session;</li></ul><p>Physically, these passwords are stored in the Drupal\'s session table in clear text. This is not ideal and is not the recomended configuration.</p><p>Unless you need to use the latter configuration, leave this checked.</p>'),
 	);
 
-  $form['ui-options'] = array( 
+  $form['anonymous-ui'] = array( 
     '#type' => 'fieldset', 
-    '#title' => t('User Interface Options'),
-    '#description' => t('<p>Only effects ldap authenticated users, by altering some Drupal user interface forms. This has no effect on reading or writing LDAP attributes.'), 
+    '#title' => t('Anonymous UI Options'),
+    '#description' => t('<p>Effects the interface for all non-authenticated users.</p>'), 
     '#collapsible' => TRUE, 
-    '#collapsed' => FALSE,
+    '#collapsed' => TRUE,
   );
-
-	$form['ui-options']['ldap_disable_request_new_password'] = array(
+  
+	$form['anonymous-ui']['ldap_disable_request_new_password'] = array(
     '#type' => 'checkbox', 
-    '#title' => t('Disable access to <em>Request new password</em> form'),
+    '#title' => t('Remove <em>Request new password</em> link from login block'),
     '#return_value' => TRUE, 
     '#default_value' => variable_get('ldap_disable_request_new_password', FALSE),
-    '#description' => t('Disable link to Drupal\'s built-in "Request new password" form from user login block. If this is checked, users can still access the "Request new password" form directly or from the user login form. This option effects the UI for anonymous users.'),
   );
 
-  $form['ui-options']['ldap_user_pass_form'] = array( 
+  $options_reset_form = array( 
+    LDAP_RESET_FORM_NO => t('Do nothing'),
+    LDAP_RESET_FORM_OVERWRITE => t('Overwrite form with HTML in textfield'),
+    LDAP_RESET_FORM_MERGE => t('Prepend HTML to form')
+  );
+  
+  $form['anonymous-ui']['ldap_alter_reset_form'] = array(
+    '#type' => 'radios', 
+    '#title' => t('Alter <em>Request New Password</em> form'),
+    '#default_value' => variable_get('ldap_alter_reset_form', LDAP_RESET_FORM_NO),
+    '#options' => $options_reset_form, 
+    '#required' => true,
+	);
+  
+  $form['anonymous-ui']['ldap_user_pass_form'] = array( 
     '#type' => 'textarea', 
     '#title' => t('New password reset message'), 
     '#default_value' => variable_get('ldap_user_pass_form','<h2>Form disabled by administrator.<h2>'),
     '#cols' => 45, 
     '#rows' => 3,
     '#maxlength' => 250,
-    '#disabled' => !variable_get('ldap_disable_request_new_password', FALSE),
-    '#description' => t('<p>Because the form is still accessible, enter substitute instructions for "Request new password" form page. Ideally there should be some instructions or a link on how to replace passwords. If this is left empty, the default Drupal form WILL BE USED.</p>'),
+    '#disabled' => (variable_get('ldap_alter_reset_form', LDAP_RESET_FORM_NO) == LDAP_RESET_FORM_NO ? TRUE : FALSE),
+    '#description' => t('<p>The <em>Request New Password</em> form cannot be removed, but it can be altered. Pick the mode based on the types of user accounts and other configuration decisions.</p>'),
     ); 
-   
-  $form['ui-options']['ldap_disable_user_request_password'] = array( 
-    '#type' => 'checkbox',
-    '#title' => t('Disable access password reset fields'),
-    '#default_value' => variable_get('ldap_disable_user_request_password',FALSE),
-    '#description' => t('<p>Disable Drupal\'s built in password change text boxes on the user edit form. If checked, the password change fields will disappear for LDAP authenticated users.</p>'),
+
+  $form['ldap-ui'] = array( 
+    '#type' => 'fieldset', 
+    '#title' => t('LDAP UI Options'),
+    '#description' => t('<p>Alters LDAP users\' interface only, though admin accounts can still access email and password fields of LDAP users regardless of selections. Does not effect non-LDAP authenticated accounts. </p>'), 
+    '#collapsible' => TRUE, 
+    '#collapsed' => TRUE,
   );
+    
+  $form['ldap-ui']['ldap_disable_user_request_password'] = array( 
+    '#type' => 'checkbox',
+    '#title' => t('Remove password change fields from user edit form'),
+    '#default_value' => variable_get('ldap_disable_user_request_password',FALSE),
+  );
+
+  $options_email_field = array( 
+    LDAP_EMAIL_FIELD_NO => t('Do nothing'),
+    LDAP_EMAIL_FIELD_REMOVE => t('Remove email field from form'),
+    LDAP_EMAIL_FIELD_DISABLE => t('Disable email field on form')
+  );
+  
+  $form['ldap-ui']['ldap_alter_email_field'] = array(
+    '#type' => 'radios', 
+    '#title' => t('Alter email field on user edit form'),
+    '#description' => t('<p>Remove or disable email field from user edit form for LDAP authenticated users.</p>'), 
+    '#default_value' => variable_get('ldap_alter_email_field', LDAP_EMAIL_FIELD_NO),
+    '#options' => $options_email_field, 
+    '#required' => true,
+	);
+  
   
 	$form['ldap_restore_defaults'] = array( 
     '#type' => 'checkbox',
@@ -309,6 +350,8 @@ function ldapauth_admin_options_submit($form_id, $form_values) {
   
   if ($form_values['ldap_restore_defaults']) {
     variable_del('ldap_disable_request_new_password');
+    variable_del('ldap_alter_reset_form');
+    variable_del('ldap_alter_email_field');
     variable_del('ldap_user_pass_form');
     variable_del('ldap_disable_user_request_password');
     variable_del('ldap_forget_passwords');
@@ -320,6 +363,8 @@ function ldapauth_admin_options_submit($form_id, $form_values) {
     variable_set('ldap_forget_passwords', $form_values['ldap_forget_passwords']);
     variable_set('ldap_login_process', $form_values['ldap_login_process']);
     variable_set('ldap_disable_user_request_password', $form_values['ldap_disable_user_request_password']);
+    variable_set('ldap_alter_reset_form', $form_values['ldap_alter_reset_form']);
+    variable_set('ldap_alter_email_field', $form_values['ldap_alter_email_field']);
     $msg = 'System wide LDAP settings saved';
   }
   drupal_set_message($msg);
@@ -728,16 +773,43 @@ function _ldapauth_user_lookup($name) {
       }
       break;
     case 'user_pass':
-      if (variable_get('ldap_disable_request_new_password', FALSE) && variable_get('ldap_user_pass_form', FALSE)) {
-        $form = array(
-          '#value' => t(variable_get('ldap_user_pass_form', '<h2>Form disabled by administrator.</h2>')),
-        );
+      $opt = variable_get('ldap_alter_reset_form', LDAP_RESET_FORM_NO);
+      if ($opt <> LDAP_RESET_FORM_NO && variable_get('ldap_user_pass_form', FALSE)) {
+        if ($opt == LDAP_RESET_FORM_OVERWRITE){
+          $form = array(
+            '#value' => t(variable_get('ldap_user_pass_form', '<h2>Form disabled by administrator.</h2>')),
+          );
+        }else{
+          $form_stub = array(
+            array(
+              '#value' => t(variable_get('ldap_user_pass_form', '<h2>Form disabled by administrator.</h2>'))
+            )
+          );
+          $form = array_merge($form_stub, $form);
+        }
       }
       break;
     case 'user_edit':
       // Remove password change if ldap user
-      if (variable_get('ldap_disable_user_request_password', FALSE) && $user->ldap_authentified) {
-        unset($form['account']['pass']);
+      if ($user->ldap_authentified) {
+        if (variable_get('ldap_disable_user_request_password', FALSE)) {
+          unset($form['account']['pass']);
+        }
+        $opt = variable_get('ldap_alter_email_field', LDAP_EMAIL_FIELD_NO);
+        if ($opt <> LDAP_EMAIL_FIELD_NO) {
+          if ($opt == LDAP_EMAIL_FIELD_REMOVE){
+            unset($form['account']['mail']);       
+          }else{
+            // To prevent a user from getting stuck if they have no ldap email, 
+            // switch required to false
+            $form['account']['mail']['#required'] = FALSE;      
+            $form['account']['mail']['#disabled'] = TRUE;      
+          }
+        }
+        if (key_exists('account', $form) && count($form['account']) <= 2) {
+          // Remove whole field set?
+          unset($form['account']);
+        }
       }
       break;
   }
