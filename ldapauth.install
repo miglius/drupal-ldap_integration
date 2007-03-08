@@ -29,6 +29,12 @@ function ldapauth_install() {
 				ldap_groups_as_entries int NOT NULL default '0',
 				ldap_group_entries varchar(255) default '',
 				ldap_group_entries_attribute varchar(255) default '',
+        ldapdata_binddn VARCHAR(255) NOT NULL default '',
+        ldapdata_bindpw VARCHAR(255) NOT NULL default '',
+        ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
+        ldapdata_rwattrs LONGTEXT NOT NULL default '', 
+      	ldapdata_roattrs LONGTEXT NOT NULL default '', 
+        ldapdata_mappings LONGTEXT NOT NULL default '',
         PRIMARY KEY (name),
         KEY sid (sid)
       ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
