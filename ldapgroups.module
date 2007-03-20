@@ -233,6 +233,7 @@ function ldapgroups_user_login(&$user) {
 
   // First, we take every mapped role from the user, later below
   // we'll grant back those deserved.
+
   $user->ldap_drupal_roles = isset($user->ldap_drupal_roles) ? $user->ldap_drupal_roles : array();
   foreach ($user->ldap_drupal_roles as $role) {
     _ldapgroups_deny_role($user, $role);
@@ -263,10 +264,10 @@ function ldapgroups_user_login(&$user) {
     foreach ($roles as $role) {
       if ($friendly_role = $ldap_group_role_mappings[$role]) {
         // Just that
-    }
+      }
       else if (preg_match('/^[^=]*=([^,]*),.*$/', $role, $matches)) {
         $friendly_role = $matches[1];
-  }
+      }
       else {
         $friendly_role = $role;
       }
@@ -292,7 +293,6 @@ function _ldapgroups_detect_groups() {
   // or there are no groups configured
 
   $row = db_fetch_object(db_query("SELECT ldap_groups_in_dn, ldap_groups_in_attr, ldap_groups_as_entries, ldap_group_dn_attribute, ldap_group_attr, ldap_group_entries, ldap_group_entries_attribute FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
-
   $groups_in_dn = $row->ldap_groups_in_dn;
   $groups_in_attr = $row->ldap_groups_in_attr;
   $groups_as_entries = $row->ldap_groups_as_entries;
@@ -312,9 +312,9 @@ function _ldapgroups_detect_groups() {
   $pass = isset($_SESSION['ldap_login']['pass']) ? $_SESSION['ldap_login']['pass'] : '';
 
   if (!$ldap->connect($dn, $pass)) {
-    $row = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
-    $dn = $row->binddn;
-    $pass = $row->bindpw;
+    $row2 = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
+    $dn = $row2->binddn;
+    $pass = $row2->bindpw;
     if (!$ldap->connect($dn,$pass)) {
       watchdog('user', "User login: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
       return false;
@@ -348,8 +348,7 @@ function _ldapgroups_detect_groups() {
   $entries_groups = array();
   if ($groups_as_entries && $branches = $group_entries) {
     $branches_array = explode("\r\n", $branches);
-
-    $group_attr = $row->ldap_group_entries_attribute ? $row->ldap_group_entries_attribute : LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE;
+    $group_attr = ($row->ldap_group_entries_attribute ? $row->ldap_group_entries_attribute : LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE);
     foreach ($branches_array as $branch) {
       $entries = $ldap->search($branch,  "$group_attr=$user->ldap_dn", array($group_attr));
       if ($entries['count'] == 0) {
@@ -364,7 +363,6 @@ function _ldapgroups_detect_groups() {
   }
 
   $ldap->disconnect();
-
   return array_merge($dn_groups, $attrib_groups, $entries_groups);
 }
 
@@ -386,7 +384,7 @@ function _ldapgroups_deny_role($user, $rolename) {
   $result = db_query("SELECT * FROM {role} WHERE name = '$rolename'");
   $role_exists = db_num_rows($result);
 
-  if ($role_exists) {
+if ($role_exists) {
     $role = db_fetch_object($result);
     $result = db_query("SELECT * FROM {users_roles} WHERE uid = $user->uid AND rid = $role->rid");
     $role_present = db_num_rows($result);

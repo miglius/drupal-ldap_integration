@@ -190,7 +190,6 @@ function ldapdata_admin_edit($ldap_name) {
       );
 
     $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($ldap_name);
-
     foreach ($drupal_fields as $key => $field) {
       $field_tmp = "ldap_amap-".$key;
       $_prefix = "<tr><td><label for=\"edit[$field_tmp]\">$field</label></td><td>";

@@ -76,9 +76,13 @@ function ldapauth_uninstall() {
   db_query('DROP TABLE {ldapauth}');
   variable_del('ldap_forget_passwords');
   variable_del('ldap_login_process');
-  variable_del('ldap_allow_request_new_password');
+  variable_del('ldap_disable_request_new_password');
+  variable_del('ldap_alter_reset_form');
+  variable_del('ldap_alter_email_field');
   variable_del('ldap_user_pass_form');
-  variable_del('ldap_allow_user_reset_password');
+  variable_del('ldap_disable_user_request_password');
+  variable_del('ldap_forget_passwords');
+  variable_del('ldap_login_process');
   
 }
 

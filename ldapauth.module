@@ -211,19 +211,7 @@ function ldapauth_admin_activate() {
   drupal_goto('admin/settings/ldapauth'); 
 }
 
-function ldapauth_admin_options() {
-  /*$script = '
-		$(document).ready( function(){
-			$("input#edit-ldap-disable-request-new-password").click( function(){	
-				$("textarea#edit-ldap-user-pass-form").attr("disabled", (! $(this).attr("checked")));
-			});
-			$("input#ldap-restore-defaults").click(function(){
-				$("form")[0].submit();
-			});
-		})';
-	
-  drupal_add_js($script, 'inline');*/
-  
+function ldapauth_admin_options() {  
 	$options_login_process = array( 
     LDAP_FIRST_DRUPAL => t('Drupal\'s DB first, then LDAP directory'),
     //LDAP_OR_DRUPAL => t('If LDAP user, LDAP only; otherwise Drupal DB'),
@@ -790,7 +778,7 @@ function _ldapauth_user_lookup($name) {
       }
       break;
     case 'user_edit':
-      // Remove password change if ldap user
+      // Check for UI changes if ldap user
       if ($user->ldap_authentified) {
         if (variable_get('ldap_disable_user_request_password', FALSE)) {
           unset($form['account']['pass']);
@@ -798,19 +786,31 @@ function _ldapauth_user_lookup($name) {
         $opt = variable_get('ldap_alter_email_field', LDAP_EMAIL_FIELD_NO);
         if ($opt <> LDAP_EMAIL_FIELD_NO) {
           if ($opt == LDAP_EMAIL_FIELD_REMOVE){
-            unset($form['account']['mail']);       
+            // Cannot just remove field because is built into Drupal as required
+            $form['account']['mail']['#type'] = 'hidden';  
+            $form['account']['mail']['#attributes']['READONLY'] = 'READONLY';
+            $form['account']['mail']['#value'] = $form['account']['mail']['#default_value'];                
           }else{
-            // To prevent a user from getting stuck if they have no ldap email, 
-            // switch required to false
-            $form['account']['mail']['#required'] = FALSE;      
-            $form['account']['mail']['#disabled'] = TRUE;      
+            // To prevent a user from getting stuck if they have no ldap email, switching
+            // to readonly which is similar to 'DISABLED' except the default value will be submitted
+            $form['account']['mail']['#attributes']['READONLY'] = 'READONLY';      
           }
         }
-        if (key_exists('account', $form) && count($form['account']) <= 2) {
-          // Remove whole field set?
+        // Remove fieldset if empty
+        if (key_exists('account', $form) && !key_exists('pass', $form['account']) && 
+          key_exists('mail', $form['account']) && $form['account']['mail']['#type'] == 'hidden') {
+          // First make sure no one else added any unexpected form fields 
+          foreach ($form['account'] as $key => $value) {
+            if ((substr($key, 0, 1) <> '#') && !($key == 'mail' ||  $key == 'pass')) {
+              // A key that isn't an attribute, 'mail', or 'pass' found; break to avoid removing fieldset 
+              break;
+            }
+          }
+          // No other fields, preserve mail and nuke fieldset
+          $form['mail'] = $form['account']['mail'];
           unset($form['account']);
         }
-      }
+      } 
       break;
   }
   
@@ -931,7 +931,6 @@ function _ldapauth_check_ldap($name, $pass) {
 
 function _ldapauth_save_user($login_string, $pass) {
   global $user, $ldap;
-  
   $account = user_load(array('name' => $login_string));
   //$dn = _ldapauth_login2dn($login_string);
   $ldap_user = _ldapauth_user_lookup($login_string);
@@ -945,7 +944,9 @@ function _ldapauth_save_user($login_string, $pass) {
     //   1. 'pass' => in "LDAP then Drupal" mode, actual password
     //                is written. In "LDAP only" mode, a random
     //                password is set
-    if (variable_get('ldap_login_process', LDAP_FIRST_LDAP) == LDAP_FIRST_LDAP) {
+    //   Changed to rely only on checkbox setting, not authentication sequence
+    //if (variable_get('ldap_login_process', LDAP_FIRST_LDAP) == LDAP_FIRST_LDAP) {
+    if (variable_get('ldap_forget_passwords', true)) {
       // generate a random generic password using drupal api
       $pass = user_password(20);
     }
