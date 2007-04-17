@@ -850,7 +850,6 @@ function ldapauth_login_validate($form_id, $form_values) {
 
 function _ldapauth_user_authenticate($name, $pass) {  
   global $user, $ldap;
-
   // (Design decision) uid=1 (admin user) must always authenticate to local database
   // this user is critical for all drupal admin and upgrade operations so it is best
   // left with drupal's native authentication
@@ -861,10 +860,13 @@ function _ldapauth_user_authenticate($name, $pass) {
   }  
   else { 
     // http://drupal.org/node/113884
-    if (!variable_get('ldap_login_process', LDAP_FIRST_LDAP)) {
+    if (variable_get('ldap_login_process', LDAP_FIRST_DRUPAL) <> LDAP_FIRST_LDAP) {
       // authenticate local users first
-      $local_user_count = db_num_rows(db_query("SELECT name FROM {users} WHERE data NOT LIKE '%%ldap\_authentified%%' AND name='%s'", $name));
-      if ($local_user_count > 0) {
+      $result = db_query("SELECT name,data FROM {users} WHERE name='%s'", $name);
+      $local_user_count = db_num_rows($result);
+      $data = db_fetch_array($result);
+      $data = unserialize($data['data']);
+      if ($local_user_count > 0 && (!isset($data['ldap_authentified']) || $data['ldap_authentified']==0)) {
         // a local user with same name exists -- authenticate that user
         
         // drupal core user_authenticate will try to invoke ldapauth_auth in itself
@@ -967,7 +969,7 @@ function _ldapauth_save_user($login_string, $pass) {
       
     // Here ldap_dn should not be set (as it was in the 4.7- versions). 
     // The DN should be determined by the specific LDAP repo that is being used at login time
-    $userinfo = array('name' => $login_string, 'pass' => $pass, 'mail' => $mail, 'init' => $init, 'status' => 1, 'authname_ldapauth' => $login_string, 'roles' => array(DRUPAL_AUTHENTICATED_RID), 'ldap_authentified' => TRUE, 'ldap_dn' => $dn);        
+    $userinfo = array('name' => $login_string, 'pass' => $pass, 'mail' => $mail, 'init' => $init, 'status' => 1, 'authname_ldapauth' => $login_string, 'ldap_authentified' => TRUE, 'ldap_dn' => $dn);        
     $user = user_save('', $userinfo);
     watchdog('user', t('New external user - ldapauth: %user using module %module.', array('%user' => theme('placeholder', $login_string), '%module' => theme('placeholder', 'ldapauth'))), WATCHDOG_NOTICE, l(t('edit'), 'user/'. $user->uid .'/edit'));
   }

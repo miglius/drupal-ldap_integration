@@ -21,7 +21,7 @@ $GLOBALS['ldap_group_role_mappings'] = array(
 
 // Note: Uncommenting this function will limit the groups -> roles conversion to ONLY those groups that are 
 // specified in the function. 
-
+/*
 function ldapgroups_roles_filter($groups) { 
   global $ldap_group_role_mappings; 
   $roles = array(); 
@@ -39,6 +39,6 @@ function ldapgroups_roles_filter($groups) {
   }
   return $roles;
 }
-
+*/
 
 ?>

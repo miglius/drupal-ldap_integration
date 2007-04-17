@@ -15,7 +15,7 @@ function ldapauth_install() {
 				port int(10) NOT NULL default '389',
 				tls int NOT NULL default '0',
 				encrypted int NOT NULL default '0',
-				basedn text(1000) NOT NULL default '',
+				basedn text NOT NULL,
 				user_attr varchar(255) NOT NULL default '',
 				mail_attr VARCHAR(255) NOT NULL DEFAULT '',
 				binddn varchar(255) NOT NULL default '',
@@ -32,9 +32,9 @@ function ldapauth_install() {
         ldapdata_binddn VARCHAR(255) NOT NULL default '',
         ldapdata_bindpw VARCHAR(255) NOT NULL default '',
         ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
-        ldapdata_rwattrs LONGTEXT NOT NULL default '', 
-      	ldapdata_roattrs LONGTEXT NOT NULL default '', 
-        ldapdata_mappings LONGTEXT NOT NULL default '',
+        ldapdata_rwattrs LONGTEXT, 
+      	ldapdata_roattrs LONGTEXT, 
+        ldapdata_mappings LONGTEXT,
         PRIMARY KEY (name),
         KEY sid (sid)
       ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
@@ -48,7 +48,7 @@ function ldapauth_install() {
       port INTEGER NOT NULL DEFAULT 389,
       tls INTEGER NOT NULL DEFAULT 0,
       encrypted INTEGER NOT NULL DEFAULT 0,
-      basedn TEXT(1000) NOT NULL DEFAULT '',
+      basedn TEXT,
       user_attr VARCHAR(255) NOT NULL DEFAULT '',
 			mail_attr VARCHAR(255) NOT NULL DEFAULT '',
       binddn VARCHAR(255) NOT NULL DEFAULT '',
@@ -62,6 +62,12 @@ function ldapauth_install() {
       ldap_groups_as_entries INTEGER NOT NULL DEFAULT 0,
       ldap_group_entries VARCHAR(255) DEFAULT '',
       ldap_group_entries_attribute VARCHAR(255) DEFAULT '',
+      ldapdata_binddn VARCHAR(255) NOT NULL default '',
+      ldapdata_bindpw VARCHAR(255) NOT NULL default '',
+      ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
+      ldapdata_rwattrs TEXT, 
+    	ldapdata_roattrs TEXT, 
+      ldapdata_mappings TEXT,
       PRIMARY KEY (name)
       )"); 
       db_query("CREATE INDEX {ldapauth}_sid_idx ON {ldapauth} (sid)");
