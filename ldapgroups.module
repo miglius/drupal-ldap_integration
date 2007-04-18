@@ -58,7 +58,7 @@ function ldapgroups_menu($may_cache) {
       'title' => t('LDAP Groups'),
       'description' => t('Configure LDAP Groups Settings'), 
       'callback' => 'ldapgroups_admin_list',
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );
     $items[] = array( 
       'path' => 'admin/settings/ldapgroups/edit',
@@ -67,7 +67,7 @@ function ldapgroups_menu($may_cache) {
       'callback arguments' => array('ldapgroups_admin_edit'),
       'type' => MENU_CALLBACK,
       'weight' => 1,
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );
     $items[] = array( 
       'path' => 'admin/settings/ldapgroups/reset', 
@@ -76,7 +76,7 @@ function ldapgroups_menu($may_cache) {
       'callback arguments' => array('ldapgroups_admin_edit'),
       'type' => MENU_CALLBACK,
       'weight' => 1,
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );
   }
   return $items;

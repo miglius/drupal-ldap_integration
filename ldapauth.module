@@ -76,7 +76,7 @@ function ldapauth_menu($may_cache) {
       'path' => 'admin/settings/ldapauth', 
       'title' => t('LDAP Integration'),
       'callback' => 'ldapauth_admin_list',
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       'description' => t('Configure LDAP settings'),
       );
 
@@ -84,7 +84,7 @@ function ldapauth_menu($may_cache) {
       'path' => 'admin/settings/ldapauth/list',
       'title' => t('List'),
       'callback' => 'ldapauth_admin_list',
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       'type' => MENU_DEFAULT_LOCAL_TASK,
       );	
 
@@ -95,7 +95,7 @@ function ldapauth_menu($may_cache) {
       'callback arguments' => array('ldapauth_admin_form'),
       'type' => MENU_LOCAL_TASK,
       'weight' => 1,
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       );
 		
     $items[] = array(
@@ -105,7 +105,7 @@ function ldapauth_menu($may_cache) {
       'callback arguments' => array('ldapauth_admin_options'),
       'type' => MENU_LOCAL_TASK,
       'weight' => 2,
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       );
 		
       $items[] = array(
@@ -114,7 +114,7 @@ function ldapauth_menu($may_cache) {
       'callback' => 'drupal_get_form',
       'callback arguments' => array('ldapauth_admin_form'),
       'type' => MENU_CALLBACK,
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       );
 		
     $items[] = array(
@@ -123,7 +123,7 @@ function ldapauth_menu($may_cache) {
       'callback' => 'drupal_get_form',
       'callback arguments' => array('ldapauth_admin_delete'),
       'type' => MENU_CALLBACK,
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       );
 
     $items[] = array(
@@ -132,7 +132,7 @@ function ldapauth_menu($may_cache) {
       'callback' => 'drupal_get_form',
       'callback arguments' => array('ldapauth_admin_activate'),
       'type' => MENU_CALLBACK,
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       );
 
     $items[] = array(
@@ -141,7 +141,7 @@ function ldapauth_menu($may_cache) {
       'callback' => 'drupal_get_form',
       'callback arguments' => array('ldapauth_admin_deactivate'),
       'type' => MENU_CALLBACK,
-      'access' => user_access('access administration pages'),
+      'access' => user_access('administer ldap modules'),
       );        
 	}
 	return $items;
@@ -151,7 +151,7 @@ function ldapauth_menu($may_cache) {
 * Implements hook_perm()
 **/
 function ldapauth_perm() {
-  return array('access administration pages');
+  return array('administer ldap modules');
 }
 
 /** 

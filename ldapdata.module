@@ -81,7 +81,7 @@ function ldapdata_menu() {
       'title' => t('LDAP Data'),
       'description' => t('Configure LDAP Data'), 
       'callback' => 'ldapdata_admin_list',
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );
     $items[] = array( 
       'path' => 'admin/settings/ldapdata/edit',
@@ -90,7 +90,7 @@ function ldapdata_menu() {
       'callback arguments' => array('ldapdata_admin_edit'),
       'type' => MENU_CALLBACK,
       'weight' => 1,
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );
     $items[] = array( 
       'path' => 'admin/settings/ldapdata/reset', 
@@ -99,7 +99,7 @@ function ldapdata_menu() {
       'callback arguments' => array('ldapdata_admin_edit'),
       'type' => MENU_CALLBACK,
       'weight' => 1,
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );
     $items[] = array( 
       'path' => 'admin/settings/ldapdata/list', 
@@ -107,7 +107,7 @@ function ldapdata_menu() {
       'callback' => 'ldapdata_admin_list',
       'type' => MENU_DEFAULT_LOCAL_TASK,
       'weight' => 1,
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer ldap modules'),
       );       
   return $items;
   
