@@ -240,7 +240,7 @@ function ldapgroups_user_login(&$user) {
   }
 
   // Then, we figure out the appropriate groups
-  $groups = _ldapgroups_detect_groups();
+  $groups = _ldapgroups_detect_groups($user);
   if ($groups === false) {
     // Oh, this means this user didn't even have to be here. Bye!
     return true;
@@ -286,8 +286,8 @@ function ldapgroups_user_login(&$user) {
  *    3. Auxiliary functions     *
  *********************************/
 
-function _ldapgroups_detect_groups() {
-  global $ldap, $user;
+function _ldapgroups_detect_groups($user) {
+  global $ldap;
 
   // Nothing to do if the user is not LDAP authentified
   // or there are no groups configured
