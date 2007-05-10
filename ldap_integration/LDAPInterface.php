@@ -93,6 +93,16 @@ class LDAPInterface {
   function connect($dn = '', $pass = '') {
     $ret = FALSE;
 
+   	// Do not attempt to connect with empty DN and pass... this usually
+	// is the result of misconfiguration in a helper module like ldapdata,
+	// where it is querying a non-existant server config.
+	if (!$dn) {
+		watchdog('LDAP Error','an LDAP module tried to connect with blank credentials.'
+				  . '  Please check your LDAP modules and make sure ldapdata and any other '
+				  . ' LDAP modules are using a valid server configuration name.', WATCHDOG_ERROR);
+		return $ret;
+	}
+	
     // If a connection already exists, it should be terminated
     $this->disconnect();
 
