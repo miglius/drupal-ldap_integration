@@ -1,0 +1,42 @@
+<?php
+// $Id$
+/**
+ * Implementation of hook_install().
+ */
+function ldapdata_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("ALTER TABLE {ldapauth} ADD (
+        ldapdata_binddn VARCHAR(255) NOT NULL default '',
+        ldapdata_bindpw VARCHAR(255) NOT NULL default '',
+        ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
+        ldapdata_rwattrs LONGTEXT NOT NULL default '', 
+      	ldapdata_roattrs LONGTEXT NOT NULL default '', 
+        ldapdata_mappings LONGTEXT NOT NULL default ''
+      )");
+      break;
+    case 'pgsql':
+      db_query("ALTER TABLE {ldapauth} ADD (
+        ldapdata_binddn VARCHAR(255) NOT NULL default '',
+        ldapdata_bindpw VARCHAR(255) NOT NULL default '',
+        ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
+        ldapdata_rwattrs TEXT NOT NULL default '', 
+        ldapdata_roattrs TEXT NOT NULL default '', 
+        ldapdata_mappings TEXT NOT NULL default ''
+      )"); 
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function ldapdata_uninstall() {
+  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_binddn");
+  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_bindpw");
+  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_bindpw_clear");
+  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_rwattrs");
+  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_roattrs");
+  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_mappings");
+}
