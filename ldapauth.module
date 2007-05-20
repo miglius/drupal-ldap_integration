@@ -823,11 +823,11 @@ function ldapauth_login_validate($form_id, $form_values) {
   if (isset($form_values['name'])) {
     if (user_is_blocked($form_values['name'])) {
       // blocked in user administration
-      form_set_error('login', t('The username %name has been blocked.', array('%name' => theme('placeholder', $form_values['name']))));
+      form_set_error('login', t('The username %name has been blocked.', array('%name' => $form_values['name'])));
     }
     else if (drupal_is_denied('user', $form_values['name'])) {
       // denied by access controls
-      form_set_error('login', t('The name %name is a reserved username.', array('%name' => theme('placeholder', $form_values['name']))));
+      form_set_error('login', t('The name %name is a reserved username.', array('%name' => $form_values['name'])));
     }
     else if ($form_values['pass']) {
       // === HACK STARTS ===
