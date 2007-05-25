@@ -343,6 +343,8 @@ function _ldapgroups_detect_groups($user) {
       $attrib_groups = array_merge($attrib_groups, $tmp);
     }
   }
+  
+  msg_r($attrib_groups);
 
   // Strategy 3: groups as entries
   $entries_groups = array();

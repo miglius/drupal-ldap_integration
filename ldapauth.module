@@ -988,7 +988,8 @@ function _ldapauth_save_user($login_string, $pass) {
   
 
   $config_name = $ldap->getOption('name');
-  user_save($user, array('ldap_config' => $config_name));
+  $userinfo = array('ldap_dn' => $dn, 'ldap_config' => $config_name);
+  user_save($user, $userinfo);
     
   // obtain the DN for this user in this specific LDAP repository  
   $_SESSION['ldap_login']['dn'] = $dn;
