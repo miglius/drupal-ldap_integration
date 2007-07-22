@@ -986,9 +986,11 @@ function _ldapauth_save_user($login_string, $pass) {
   // We save the config that was used to authenticate the user in the user object.
   // This will be used by ldapdata and other ldapXXX modules.
   
-
+  if (key_exists(($ldapauth_ldap->getOption('mail_attr') ? $ldapauth_ldap->getOption('mail_attr') : LDAP_DEFAULT_MAIL_ATTRIBUTE), $ldap_user)) {
+    $mail = $ldap_user[$ldapauth_ldap->getOption('mail_attr')][0];
+  }
   $config_name = $ldapauth_ldap->getOption('name');
-  $userinfo = array('ldap_dn' => $dn, 'ldap_config' => $config_name);
+  $userinfo = array('mail' => $mail, 'ldap_dn' => $dn, 'ldap_config' => $config_name);
   user_save($user, $userinfo);
     
   // obtain the DN for this user in this specific LDAP repository  
