@@ -41,7 +41,7 @@ must read http://drupal.org/node/92407#comment-178886
 Documentation
 =============
 
-Documentation is forthcoming. For LDAP administrators, it should be intituitive.
-(well, atleast that was the thought..)
+Documentation is forthcoming. For LDAP administrators, it should be intuitive.
+(well, at least that was the thought..)
 
 

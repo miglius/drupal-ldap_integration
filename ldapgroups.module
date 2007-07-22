@@ -16,6 +16,7 @@ define('LDAP_DEFAULT_GROUP_ATTR', 'userGroups');
 define('LDAP_DEFAULT_GROUP_ENTRIES', 'cn=Group,dc=example,dc=com');
 define('LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE', 'memberUid');
 
+$GLOBALS['ldapgroups_ldap'] = new LDAPInterface();
 
 /*********************************
  *       1. Drupal hooks         *
@@ -230,6 +231,11 @@ function ldapgroups_user_login(&$user) {
   if (!$user->ldap_authentified) {
     return true;
   }
+  
+  // setup the global $ldapdata_ldap object
+  if (!_ldapgroups_ldap_init($user)) {
+    return;
+  }
 
   // First, we take every mapped role from the user, later below
   // we'll grant back those deserved.
@@ -287,12 +293,12 @@ function ldapgroups_user_login(&$user) {
  *********************************/
 
 function _ldapgroups_detect_groups($user) {
-  global $ldap;
+  global $ldapgroups_ldap;
 
   // Nothing to do if the user is not LDAP authentified
   // or there are no groups configured
 
-  $row = db_fetch_object(db_query("SELECT ldap_groups_in_dn, ldap_groups_in_attr, ldap_groups_as_entries, ldap_group_dn_attribute, ldap_group_attr, ldap_group_entries, ldap_group_entries_attribute FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
+  $row = db_fetch_object(db_query("SELECT ldap_groups_in_dn, ldap_groups_in_attr, ldap_groups_as_entries, ldap_group_dn_attribute, ldap_group_attr, ldap_group_entries, ldap_group_entries_attribute FROM {ldapauth} WHERE name = '%s'", $ldapgroups_ldap->getOption('name')));
   $groups_in_dn = $row->ldap_groups_in_dn;
   $groups_in_attr = $row->ldap_groups_in_attr;
   $groups_as_entries = $row->ldap_groups_as_entries;
@@ -311,11 +317,11 @@ function _ldapgroups_detect_groups($user) {
   $dn = isset($_SESSION['ldap_login']['dn']) ? $_SESSION['ldap_login']['dn'] : '';
   $pass = isset($_SESSION['ldap_login']['pass']) ? $_SESSION['ldap_login']['pass'] : '';
 
-  if (!$ldap->connect($dn, $pass)) {
-    $row2 = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
+  if (!$ldapgroups_ldap->connect($dn, $pass)) {
+    $row2 = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldapgroups_ldap->getOption('name')));
     $dn = $row2->binddn;
     $pass = $row2->bindpw;
-    if (!$ldap->connect($dn,$pass)) {
+    if (!$ldapgroups_ldap->connect($dn,$pass)) {
       watchdog('user', "User login: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
       return false;
     }      
@@ -339,12 +345,11 @@ function _ldapgroups_detect_groups($user) {
   if ($groups_in_attr && $attributes = $group_attr) {
     $attributes_array = explode("\r\n", $attributes);
     foreach ($attributes_array as $attribute) {
-      $tmp = $ldap->retrieveMultiAttribute($user->ldap_dn, $attribute);
+      $tmp = $ldapgroups_ldap->retrieveMultiAttribute($user->ldap_dn, $attribute);
       $attrib_groups = array_merge($attrib_groups, $tmp);
     }
   }
   
-  msg_r($attrib_groups);
 
   // Strategy 3: groups as entries
   $entries_groups = array();
@@ -352,9 +357,9 @@ function _ldapgroups_detect_groups($user) {
     $branches_array = explode("\r\n", $branches);
     $group_attr = ($row->ldap_group_entries_attribute ? $row->ldap_group_entries_attribute : LDAP_DEFAULT_GROUP_ENTRIES_ATTRIBUTE);
     foreach ($branches_array as $branch) {
-      $entries = $ldap->search($branch,  "$group_attr=$user->ldap_dn", array($group_attr));
+      $entries = $ldapgroups_ldap->search($branch,  "$group_attr=$user->ldap_dn", array($group_attr));
       if ($entries['count'] == 0) {
-        $entries = $ldap->search($branch,  "$group_attr=$user->name", array($group_attr));
+        $entries = $ldapgroups_ldap->search($branch,  "$group_attr=$user->name", array($group_attr));
       }
       foreach ($entries as $entry) {
         if (isset($entry['dn'])) {
@@ -364,7 +369,7 @@ function _ldapgroups_detect_groups($user) {
     }
   }
 
-  $ldap->disconnect();
+  $ldapgroups_ldap->disconnect();
   return array_merge($dn_groups, $attrib_groups, $entries_groups);
 }
 
@@ -404,5 +409,25 @@ function _ldapgroups_create_role($rolename) {
      db_query("INSERT INTO {role} (name) VALUES ('%s')", $rolename);
   }
 }
+
+function _ldapgroups_ldap_init(&$user) {
+  global $ldapgroups_ldap;
+  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '%s' AND name = '%s'", 1, $user->ldap_config))) {
+    $ldapgroups_ldap = new LDAPInterface();
+    $ldapgroups_ldap->setOption('name', $row->name);
+    $ldapgroups_ldap->setOption('server', $row->server);
+    $ldapgroups_ldap->setOption('port', $row->port);
+    $ldapgroups_ldap->setOption('tls', $row->tls);
+    $ldapgroups_ldap->setOption('encrypted', $row->encrypted);
+    $ldapgroups_ldap->setOption('basedn', $row->basedn);
+    $ldapgroups_ldap->setOption('user_attr', $row->user_attr);
+    return $ldapgroups_ldap;
+  }
+  else {
+    return;
+  }  
+}
+
+
 
 ?>

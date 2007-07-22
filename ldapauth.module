@@ -22,7 +22,7 @@ define('LDAP_DEFAULT_BASE_DN', 'ou=Users,dc=drupal,dc=org');
 define('LDAP_DEFAULT_USER_ATTRIBUTE', 'sAMAccountName');
 define('LDAP_DEFAULT_MAIL_ATTRIBUTE', 'mail');
 
-$GLOBALS['ldap'] = new LDAPInterface();
+$GLOBALS['ldapauth_ldap'] = new LDAPInterface();
 
 /*********************************
  *       1. Drupal hooks         *
@@ -567,7 +567,7 @@ function ldapauth_admin_delete_submit($form_id, $form_values) {
 }
 
 function ldapauth_auth($name, $pass, $server) {
-  global $ldap;
+  global $ldapauth_ldap;
 
   $ok = false;
   $login_name = $server ? "$name@$server" : $name;
@@ -580,11 +580,11 @@ function ldapauth_auth($name, $pass, $server) {
   // Not allowing empty passwords because they cause problems
   // on some setups. See http://drupal.org/node/87831
   if ($dn && $pass) {
-    $ok = $ldap->connect($dn, $pass);
+    $ok = $ldapauth_ldap->connect($dn, $pass);
   }
 
   if ($ok && function_exists('ldapauth_user_filter')) {
-    $ok = $ok && call_user_func('ldapauth_user_filter', $ldap->retrieveAttributes($dn));
+    $ok = $ok && call_user_func('ldapauth_user_filter', $ldapauth_ldap->retrieveAttributes($dn));
   }
   return $ok;
 }
@@ -639,25 +639,25 @@ function ldapauth_user($op, &$edit, &$edit_user, $category = NULL) {
  *********************************/
 
 function _ldapauth_init($config) {
-  global $ldap;	
+  global $ldapauth_ldap;	
 
   $row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE name = '%s'", $config)); 
 
-  // $ldap = new LDAPInterface();
-  $ldap->setOption('name', $row->name);
-  $ldap->setOption('server', $row->server);
-  $ldap->setOption('port', $row->port);
-  $ldap->setOption('tls', $row->tls);
-  $ldap->setOption('encrypted', $row->encrypted);
-  $ldap->setOption('basedn', $row->basedn);
-  $ldap->setOption('user_attr', $row->user_attr);
-  $ldap->setOption('mail_attr', $row->mail_attr);
+  // $ldapauth_ldap = new LDAPInterface();
+  $ldapauth_ldap->setOption('name', $row->name);
+  $ldapauth_ldap->setOption('server', $row->server);
+  $ldapauth_ldap->setOption('port', $row->port);
+  $ldapauth_ldap->setOption('tls', $row->tls);
+  $ldapauth_ldap->setOption('encrypted', $row->encrypted);
+  $ldapauth_ldap->setOption('basedn', $row->basedn);
+  $ldapauth_ldap->setOption('user_attr', $row->user_attr);
+  $ldapauth_ldap->setOption('mail_attr', $row->mail_attr);
   return;
 }
 
 
 function _ldapauth_login2dn($login) {
-  global $ldap;
+  global $ldapauth_ldap;
 
   $ret = '';
 
@@ -669,29 +669,29 @@ function _ldapauth_login2dn($login) {
 }
 
 function _ldapauth_user_lookup($name) {
-  global $ldap;
+  global $ldapauth_ldap;
   $ret = null;
 
-  if (! $ldap) {
+  if (! $ldapauth_ldap) {
     return;
   }
 
-  $row = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldap->getOption('name')));
+  $row = db_fetch_object(db_query("SELECT binddn, bindpw FROM {ldapauth} WHERE name = '%s'", $ldapauth_ldap->getOption('name')));
   $dn = $row->binddn;
   $pass = $row->bindpw;
   
   // If there is no BINDDN and BINDPW -- the connect will be an anonymous connect
-  $ldap->connect($dn, $pass);
+  $ldapauth_ldap->connect($dn, $pass);
 
-  $possible_base_dns = explode("\r\n", $ldap->getOption('basedn'));
+  $possible_base_dns = explode("\r\n", $ldapauth_ldap->getOption('basedn'));
   foreach ($possible_base_dns as $base_dn) {
     if( ! $base_dn) {
       continue;
     }
 
-    $name_attr = $ldap->getOption('user_attr') ? $ldap->getOption('user_attr') : LDAP_DEFAULT_USER_ATTRIBUTE;
+    $name_attr = $ldapauth_ldap->getOption('user_attr') ? $ldapauth_ldap->getOption('user_attr') : LDAP_DEFAULT_USER_ATTRIBUTE;
     $filter = "$name_attr=$name";
-    $result = $ldap->search($base_dn, $filter);
+    $result = $ldapauth_ldap->search($base_dn, $filter);
     if ( ! $result) {
       continue;
     }
@@ -849,7 +849,7 @@ function ldapauth_login_validate($form_id, $form_values) {
 }
 
 function _ldapauth_user_authenticate($name, $pass) {  
-  global $user, $ldap;
+  global $user, $ldapauth_ldap;
   // (Design decision) uid=1 (admin user) must always authenticate to local database
   // this user is critical for all drupal admin and upgrade operations so it is best
   // left with drupal's native authentication
@@ -874,7 +874,7 @@ function _ldapauth_user_authenticate($name, $pass) {
         // otherwise, drupal will happily create a new user and not tag it as a ldap user!
      
         // nullify global ldap resource for good measure
-        $ldap = "";
+        $ldapauth_ldap = "";
         $user = user_authenticate($name, $pass);
       }
       else {
@@ -897,7 +897,7 @@ function _ldapauth_user_authenticate($name, $pass) {
 }
   
 function _ldapauth_check_ldap($name, $pass) {  
-  global $ldap;
+  global $ldapauth_ldap;
   
   $login_ok = false; 
   
@@ -906,7 +906,7 @@ function _ldapauth_check_ldap($name, $pass) {
     // cycle thru the authentication schemes - first successful one wins
     // instantiate ldap
     _ldapauth_init($row->name);
-    $config_name = $ldap->getOption('name');
+    $config_name = $ldapauth_ldap->getOption('name');
     // Strip name and server from ID:
     if ($server = strrchr($name, '@')) {
       $login_name = substr($name, 0, strlen($name) - strlen($server));
@@ -932,7 +932,7 @@ function _ldapauth_check_ldap($name, $pass) {
 }
 
 function _ldapauth_save_user($login_string, $pass) {
-  global $user, $ldap;
+  global $user, $ldapauth_ldap;
   $account = user_load(array('name' => $login_string));
   //$dn = _ldapauth_login2dn($login_string);
   $ldap_user = _ldapauth_user_lookup($login_string);
@@ -957,8 +957,8 @@ function _ldapauth_save_user($login_string, $pass) {
     //                ldapdata module is enabled, it will write the
     //                right value upon login
     
-    if (key_exists(($ldap->getOption('mail_attr') ? $ldap->getOption('mail_attr') : LDAP_DEFAULT_MAIL_ATTRIBUTE), $ldap_user)) {
-      $mail = $ldap_user[$ldap->getOption('mail_attr')][0];
+    if (key_exists(($ldapauth_ldap->getOption('mail_attr') ? $ldapauth_ldap->getOption('mail_attr') : LDAP_DEFAULT_MAIL_ATTRIBUTE), $ldap_user)) {
+      $mail = $ldap_user[$ldapauth_ldap->getOption('mail_attr')][0];
     } else {
       $mail = "";
     }
@@ -987,7 +987,7 @@ function _ldapauth_save_user($login_string, $pass) {
   // This will be used by ldapdata and other ldapXXX modules.
   
 
-  $config_name = $ldap->getOption('name');
+  $config_name = $ldapauth_ldap->getOption('name');
   $userinfo = array('ldap_dn' => $dn, 'ldap_config' => $config_name);
   user_save($user, $userinfo);
     

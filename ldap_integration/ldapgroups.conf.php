@@ -15,7 +15,7 @@ $GLOBALS['ldap_group_role_mappings'] = array(
   // LDAP group => Drupal role
   
   // make sure the last group->role mapping does NOT have a trailing comma (,)
-  'cn=admin,ou=Group,dc=example,dc=com' => 'IT'
+  //'cn=admin,ou=Group,dc=example,dc=com' => 'IT'
   
 );
 

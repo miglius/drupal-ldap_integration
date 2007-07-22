@@ -1,0 +1,13 @@
+2007-07-22 kreaper <http://rajeev.name>
+
+	* ldapdata.module: bug fix for http://drupal.org/node/136068
+	http://bugs.mysql.com/bug.php?id=25520 specifies that in Windows, TEXT/BLOB cannot have a default value
+
+2007-07-09 kreaper <http://rajeev.name>
+
+	* ldapgroups.module: renamed the global variable $ldap to $ldapgroups_ldap. 
+	Created a new function _ldapgroups_ldap_init() to setup the ldapgroups_ldap object.
+
+	* ldapdata.module: renamed the global variable $ldap to $ldapdata_ldap
+
+	* ldapauth.module: renamed the global variable $ldap to $ldapauth_ldap

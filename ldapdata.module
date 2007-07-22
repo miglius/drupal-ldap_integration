@@ -16,8 +16,9 @@ define('LDAP_MAP_ATTRIBUTES', 6);
 define('LDAP_MAP_ATTRIBUTES_READ_ONLY', 4);
 define('LDAP_MAP_NOTHING', 2);
 
+$GLOBALS['ldapdata_ldap'] = new LDAPInterface();
 if (function_exists('ldapdata_attribute_filter')) {
-  $GLOBALS['ldap']->setOption('attr_filter', 'ldapdata_attribute_filter');
+  $GLOBALS['ldapdata_ldap']->setOption('attr_filter', 'ldapdata_attribute_filter');
 }
 
 
@@ -422,7 +423,7 @@ function ldapdata_user_categories(&$user) {
  * Only used for editable LDAP attributes with no Drupal equivalents
  */
 function ldapdata_user_form(&$user, $category) {
-  global $ldap_attributes, $ldap;
+  global $ldap_attributes, $ldapdata_ldap;
   $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
   $attributes = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
@@ -434,12 +435,12 @@ function ldapdata_user_form(&$user, $category) {
   }
   
   $bind_info = _ldapdata_edition($user);  
-  if (!$ldap->connect($bind_info[0], $bind_info[1])) {
+  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
     watchdog('user', "User form: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
     return;
   }
   
-  $entry = $ldap->retrieveAttributes($user->ldap_dn);
+  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
 
   $output = '';
   $form['ldap_attributes'] = array(
@@ -457,15 +458,15 @@ function ldapdata_user_form(&$user, $category) {
     }
   }
   
-  $ldap->disconnect();
+  $ldapdata_ldap->disconnect();
   
   return $form; 
 }
 
 function ldapdata_user_load(&$user) {
-  global $ldap;
+  global $ldapdata_ldap;
   
-  // setup the global $ldap object
+  // setup the global $ldapdata_ldap object
   if (!_ldapdata_ldap_init($user)) {
     return;
   }
@@ -480,12 +481,12 @@ function ldapdata_user_load(&$user) {
   }
   
   $bind_info = _ldapdata_edition($user);  
-  if (!$ldap->connect($bind_info[0], $bind_info[1])) {
+  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
     watchdog('user', "User load: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
     return;
   }
 
-  $entry = $ldap->retrieveAttributes($user->ldap_dn);
+  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
    if ($entry) {
     $ldap_drupal_mappings = array_flip(_ldapdata_reverse_mappings($user->ldap_config));
     foreach ($ldap_drupal_mappings as $ldap_attr => $drupal_field) {
@@ -498,14 +499,14 @@ function ldapdata_user_load(&$user) {
     ldapdata_user_profile_load($user);    
   }
 
-  $ldap->disconnect();
+  $ldapdata_ldap->disconnect();
 
 }
 
 
 
 function ldapdata_user_profile_load(&$user) {
-  global $ldap;  
+  global $ldapdata_ldap;  
   $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($user->ldap_config);
   $ldap_drupal_mappings = array_flip($ldap_drupal_reverse_mappings);  
 
@@ -514,7 +515,7 @@ function ldapdata_user_profile_load(&$user) {
 
   // compare against mapped fields list
   $writeout = array();
-  $entry = $ldap->retrieveAttributes($user->ldap_dn);
+  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
   foreach ($profile_fields as $key => $field ) {
     if (in_array($key, $ldap_drupal_mappings)) {
       $writeout[$field] = $entry[strtolower($ldap_drupal_reverse_mappings[$key])][0];
@@ -537,7 +538,7 @@ function ldapdata_user_profile_load(&$user) {
 }
 
 function ldapdata_user_login(&$user) {
-  global $ldap;
+  global $ldapdata_ldap;
   
   // The whole point of implementing this hook is getting the
   // e-mail address written to the DB as soon as possible.
@@ -551,13 +552,13 @@ function ldapdata_user_login(&$user) {
   } 
 
   $bind_info = _ldapdata_edition($user);  
-  if (!$ldap->connect($bind_info[0], $bind_info[1])) {
+  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
     watchdog('user', "User login: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
     return;
   }
 
-  $entry = $ldap->retrieveAttributes($user->ldap_dn);
-  $ldap->disconnect();
+  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
+  $ldapdata_ldap->disconnect();
 
   $d2l_mappings = _ldapdata_reverse_mappings($user->ldap_config);
 
@@ -571,7 +572,7 @@ function ldapdata_user_login(&$user) {
 }
 
 function ldapdata_user_update(&$edit, &$user, $category) {
-  global $ldap;
+  global $ldapdata_ldap;
   
   if (!$user->ldap_authentified) {
     return;
@@ -598,19 +599,19 @@ function ldapdata_user_update(&$edit, &$user, $category) {
   $writeout = array_merge($writeout, ldapdata_user_update_profile($edit, $user));
   if ($writeout) {
     $bind_info = _ldapdata_edition($user);  
-    if (!$ldap->connect($bind_info[0], $bind_info[1])) {
+    if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
       watchdog('user', "User update: user $user->name's data could not be updated in the LDAP directory", WATCHDOG_NOTICE);
       return;
     }
     
-    $ldap->writeAttributes($user->ldap_dn, $writeout);
+    $ldapdata_ldap->writeAttributes($user->ldap_dn, $writeout);
   }
 
-  $ldap->disconnect();
+  $ldapdata_ldap->disconnect();
 }
 
 function ldapdata_user_update_ldap_attributes(&$edit, &$user) {
-  global $ldap;
+  global $ldapdata_ldap;
   $writeout = array();
   
   $editables = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');  
@@ -687,18 +688,18 @@ function ldapdata_user_update_profile(&$edit, &$user) {
 }
 
 function ldapdata_user_view(&$user) {
-  global $ldap, $ldap_attributes;
+  global $ldapdata_ldap, $ldap_attributes;
   if (!$user->ldap_authentified) {
     return;
   }
 
   $bind_info = _ldapdata_edition($user);  
-  if (!$ldap->connect($bind_info[0], $bind_info[1])) {
+  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
     watchdog('user', "User view: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
     return;
   }
 
-  $entry = $ldap->retrieveAttributes($user->ldap_dn);
+  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
   $ret = array();
   
   $allowed_attrs = _ldapdata_ldap_info($user, 'ldapdata_roattrs');
@@ -713,7 +714,7 @@ function ldapdata_user_view(&$user) {
     }
   }
 
-  $ldap->disconnect();
+  $ldapdata_ldap->disconnect();
 
   return $ret;
 }
@@ -872,17 +873,17 @@ function _ldapdata_ldap_info(&$user, $req ) {
 }
 
 function _ldapdata_ldap_init(&$user) {
-  global $ldap;
+  global $ldapdata_ldap;
   if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '%s' AND name = '%s'", 1, $user->ldap_config))) {
-    $ldap = new LDAPInterface();
-    $ldap->setOption('name', $row->name);
-    $ldap->setOption('server', $row->server);
-    $ldap->setOption('port', $row->port);
-    $ldap->setOption('tls', $row->tls);
-    $ldap->setOption('encrypted', $row->encrypted);
-    $ldap->setOption('basedn', $row->basedn);
-    $ldap->setOption('user_attr', $row->user_attr);
-    return $ldap;
+    $ldapdata_ldap = new LDAPInterface();
+    $ldapdata_ldap->setOption('name', $row->name);
+    $ldapdata_ldap->setOption('server', $row->server);
+    $ldapdata_ldap->setOption('port', $row->port);
+    $ldapdata_ldap->setOption('tls', $row->tls);
+    $ldapdata_ldap->setOption('encrypted', $row->encrypted);
+    $ldapdata_ldap->setOption('basedn', $row->basedn);
+    $ldapdata_ldap->setOption('user_attr', $row->user_attr);
+    return $ldapdata_ldap;
   }
   else {
     return;
