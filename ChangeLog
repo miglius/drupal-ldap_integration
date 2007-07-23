@@ -1,5 +1,8 @@
 2007-07-22 kreaper <http://rajeev.name>
 
+	* ldapauth.module: http://drupal.org/node/158671
+	contributed code that modifies code flow and also enabled ldapauth_auth() to work with other modules. 
+
 	* ldapdata.module: bug fix for http://drupal.org/node/136068
 	http://bugs.mysql.com/bug.php?id=25520 specifies that in Windows, TEXT/BLOB cannot have a default value
 
