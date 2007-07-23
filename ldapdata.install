@@ -21,9 +21,9 @@ function ldapdata_install() {
         ldapdata_binddn VARCHAR(255) NOT NULL default '',
         ldapdata_bindpw VARCHAR(255) NOT NULL default '',
         ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
-        ldapdata_rwattrs TEXT NOT NULL default '', 
-        ldapdata_roattrs TEXT NOT NULL default '', 
-        ldapdata_mappings TEXT NOT NULL default ''
+        ldapdata_rwattrs TEXT NOT NULL, 
+        ldapdata_roattrs TEXT NOT NULL, 
+        ldapdata_mappings TEXT NOT NULL
       )"); 
       break;
   }
