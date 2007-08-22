@@ -1,3 +1,8 @@
+2007-08-22 kreaper <http://rajeev.name>
+
+	* ldap_integration/LDAPInterface.php: http://drupal.org/node/158671
+	No longer initializing $ldap->server to "example.com"
+	
 2007-07-22 kreaper <http://rajeev.name>
 
 	* ldapauth.module: http://drupal.org/node/158671

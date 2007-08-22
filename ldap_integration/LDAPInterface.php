@@ -4,8 +4,9 @@
 class LDAPInterface {
 
   function LDAPInterface() {
-    $this->connection = null;
-    $this->server = "example.com";
+    $this->connection = NULL;
+    //http://drupal.org/node/158671
+    $this->server = NULL;
     $this->port = "389";
     $this->secretKey = NULL;
     $this->tls = false;
