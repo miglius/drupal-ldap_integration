@@ -221,7 +221,7 @@ function ldapauth_admin_options() {
   $form['system-options'] = array( 
     '#type' => 'fieldset', 
     '#title' => t('Authentication mode'),
-    '#description' => t('<p><strong>NOTE:</strong> These settings have no effect on Drupal user with uid 1. The admin account never uses LDAP.</p>'), 
+    '#description' => t('<p><strong>NOTE:</strong> These settings have no effect on Drupal user with uid 1. The admin account never uses LDAP.<strong></p>'), 
     '#collapsible' => TRUE, 
     '#collapsed' => TRUE,
   );
