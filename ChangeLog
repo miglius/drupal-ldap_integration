@@ -1,3 +1,9 @@
+2007-08-23 kreaper <http://rajeev.name>
+
+	* ldapauth.module: http://drupal.org/node/169766 
+	same html fixed as 164078. Did not actually fix it last time :)
+	
+
 2007-08-22 kreaper <http://rajeev.name>
 
 	* ldapauth.module: http://drupal.org/node/142738
