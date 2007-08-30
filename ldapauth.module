@@ -221,7 +221,7 @@ function ldapauth_admin_options() {
   $form['system-options'] = array( 
     '#type' => 'fieldset', 
     '#title' => t('Authentication mode'),
-    '#description' => t('<p><strong>NOTE:</strong> These settings have no effect on Drupal user with uid 1. The admin account never uses LDAP.</strong></p>'), 
+    '#description' => t('<p><strong>NOTE:</strong> These settings have no effect on Drupal user with uid 1. The admin account never uses LDAP.</p>'), 
     '#collapsible' => TRUE, 
     '#collapsed' => TRUE,
   );
@@ -917,8 +917,8 @@ function _ldapauth_save_user($login_string, $pass) {
     //   Changed to rely only on checkbox setting, not authentication sequence
     //if (variable_get('ldap_login_process', LDAP_FIRST_LDAP) == LDAP_FIRST_LDAP) {
     if (variable_get('ldap_forget_passwords', true)) {
-      // http://drupal.org/node/142738
-      $pass = ' ';
+      // generate a random generic password using drupal api
+      $pass = user_password(20);
     }
     //   2. 'mail' => we cannot access the LDAP info from here, so
     //                we just write anything as e-mail address. If

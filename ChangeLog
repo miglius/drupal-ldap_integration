@@ -1,13 +1,9 @@
-2007-08-23 kreaper <http://rajeev.name>
+2007-08-29  kreaper  <http://rajeev.name>
 
-	* ldapauth.module: http://drupal.org/node/169766 
-	same html fixed as 164078. Did not actually fix it last time :)
-	
+	* ldapauth.module: http://drupal.org/node/171440
+	the extra <strong> the problem with the fieldset and is removed.
 
 2007-08-22 kreaper <http://rajeev.name>
-
-	* ldapauth.module: http://drupal.org/node/142738
-	do not generate random password during new ldap user registration
 
 	* ldap_integration/LDAPInterface.php: http://drupal.org/node/164049
 	Allow anonymous LDAP connect();
