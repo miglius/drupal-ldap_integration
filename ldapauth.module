@@ -107,8 +107,18 @@ function ldapauth_menu($may_cache) {
       'weight' => 2,
       'access' => user_access('administer ldap modules'),
       );
-    
-      $items[] = array(
+		
+    $items[] = array(
+      'path' => 'admin/settings/ldapauth/reset',
+      'title' => t('Reset LDAP Users'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('ldapauth_admin_reset'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 3,
+      'access' => user_access('administer ldap modules'),
+      );
+
+    $items[] = array(
       'path' => 'admin/settings/ldapauth/edit',
       'title' => t('Configure LDAP Server'),
       'callback' => 'drupal_get_form',
@@ -357,6 +367,81 @@ function ldapauth_admin_options_submit($form_id, $form_values) {
   }
   drupal_set_message($msg);
   return 'admin/settings/ldapauth/options';
+}
+
+function ldapauth_admin_reset() {
+  // Should change the form to request confirmation
+  $form['markup'] = array(
+    '#type' => 'markup',
+    '#value' => t('<p>This will set all Drupal users accounts to use LDAP authentication if a corresponding LDAP record is found.</p><p>This is only needed if Drupal accounts are not associated with the correct LDAP entry. This is run against all Drupal accounts accept uid=1. Accounts not found on LDAP server are not altered.</p>'), 
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Reset'),    
+  );
+  
+  return $form;
+}
+
+function ldapauth_admin_reset_submit($form_id, $form_values) {
+  // Not working yet - resets non ldap users as well.
+  global $ldapauth_ldap;
+
+  // User #1 and inactive users shouldn't be updated
+  $result = db_query('SELECT * from {users} WHERE uid > 1 AND status = 1');
+  $total = db_affected_rows($result);
+  $count = 0;
+
+  // connect to the server and search for each user
+  // to fill in their DN information
+  $server = db_fetch_object(db_query("SELECT name FROM {ldapauth} WHERE status = '%d' ORDER BY sid", 1));
+  $ldapauth_ldap->reset = TRUE;
+
+  // Since it's not cycling through all servers - this only works against first ldap server - msm
+  _ldapauth_init($server->name);
+  if($ldapauth_ldap->connect()) {
+    while ($account = db_fetch_object($result)) {
+      // Get the DN information for the user
+      $ldap_user = _ldapauth_user_lookup($account->name);
+      if ($ldap_user) {
+        $dn = $ldap_user['dn'];
+      }
+
+      $change = array(
+        'ldap_authentified' => TRUE,
+        'ldap_dn' => $dn,
+        'ldap_config' => $server->name,
+      );
+
+      // store the information in the database - isn't supposed to reset dn as well - msm
+      if ($account = user_save($account, $change)) {
+        db_query("UPDATE {authmap} SET module = 'ldapauth' WHERE uid = '%d'", $account->uid);
+        $count++;      
+      }
+      else {
+        drupal_set_message("Failed to update $account->name.");
+      }
+
+      // if LDAP Groups is enabled, fill in group info for all users, too
+      // Is it safe to login each account - msm
+      if (module_exists('ldapgroups')) {
+        ldapgroups_user_login($account);
+      }
+    }
+
+    $ldapauth_ldap->disconnect();
+
+    drupal_set_message("$count of $total user accounts updated.");
+  }
+  else {
+    drupal_set_message("Failed to connect to LDAP server.");
+  }
+  
+  // Unsetting globals only works by directly referencing globals array
+  unset($GLOBALS['ldapauth_ldap']->reset);
+  // No reason to return to reset page
+  return 'admin/settings/ldapauth';
 }
 
 function ldapauth_admin_form() {
@@ -959,7 +1044,7 @@ function _ldapauth_save_user($login_string, $pass) {
   
   $config_name = $ldapauth_ldap->getOption('name');
   $userinfo = array('mail' => $mail, 'ldap_dn' => $dn, 'ldap_config' => $config_name);
-  user_save($user, $userinfo);
+  $user = user_save($user, $userinfo);
     
   // obtain the DN for this user in this specific LDAP repository  
   $_SESSION['ldap_login']['dn'] = $dn;

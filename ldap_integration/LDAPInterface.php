@@ -93,12 +93,26 @@ class LDAPInterface {
 
   function connect($dn = '', $pass = '') {
     $ret = FALSE;
-	// http://drupal.org/node/164049
-    // If a connection already exists, it should be terminated
-    $this->disconnect();
+	
+    // If we're performing an account reset, we don't want to reconnect for each account, so skip the disconnect
+    if ($this->reset) {
+      if (!$this->connection) {
+        if ($this->connectAndBind($dn, $pass)) {
+          $ret = TRUE;
+        }
+      }
+      else {
+        $ret = TRUE;
+      }
+    }
+    else {
+      // http://drupal.org/node/164049
+      // If a connection already exists, it should be terminated, don't try to reconnect
+      $this->disconnect();
 
-    if ($this->connectAndBind($dn, $pass)) {
-      $ret = TRUE;
+      if ($this->connectAndBind($dn, $pass)) {
+        $ret = TRUE;
+      }
     }
 
     return $ret;
