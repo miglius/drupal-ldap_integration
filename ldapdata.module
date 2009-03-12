@@ -1,534 +1,396 @@
 <?php
-
 // $Id$
-include_once('ldap_integration/ldapdata.conf.php');
-include_once('ldap_integration/libdebug.php');
-include_once('ldap_integration/LDAPInterface.php');
-
-
-// Private constants. Do not touch
-define('LDAP_SETTINGS_GROUP_STRING', t('LDAP attributes'));
-define('LDAP_USER_DATA_EDIT_TAB', t('LDAP entry'));
-define('LDAP_CATEGORY_USER_DATA', 'ldap_user_data');
-
-// Changed the values to be more unix-line. 6 = rw, 4 = ro, 2 = nothing
-define('LDAP_MAP_ATTRIBUTES', 6);
-define('LDAP_MAP_ATTRIBUTES_READ_ONLY', 4);
-define('LDAP_MAP_NOTHING', 2);
-
-$GLOBALS['ldapdata_ldap'] = new LDAPInterface();
-if (function_exists('ldapdata_attribute_filter')) {
-  $GLOBALS['ldapdata_ldap']->setOption('attr_filter', 'ldapdata_attribute_filter');
-}
-
-
-/***************************
-*     Drupal Hooks         *
-***************************/
 
 /**
-* Implements hook_help()
-**/
-function ldapdata_help($section) {
-  $output = '';
-  
-  switch ($section) {
-    case 'admin/modules#name':
-      $output = 'ldapdata';
-      break;
-    case 'admin/modules#description':
-    case 'admin/help#ldapauth':
-      $output = 'Permits reading and editing of own\'s LDAP data for users authenticated via <strong>ldapauth</strong> module.';
-      break;
-    case 'user/help#ldapauth':
-      $output = t('Edit LDAP account info');
-      break;   
-  }
+ * @file
+ * ldapdata provides data maping against ldap server.
+ */
 
-  return $output;
+//////////////////////////////////////////////////////////////////////////////
+
+define('LDAPDATA_PROFILE',        'LDAP attributes');
+define('LDAPDATA_PROFILE_WEIGHT', 5);
+define('LDAPDATA_USER_TAB',       'LDAP entry');
+define('LDAPDATA_USER_DATA',      'ldapdata_user_data');
+
+// Changed the values to be more unix-line. 6 = rw, 4 = ro, 2 = nothing.
+define('LDAPDATA_MAP_ATTRIBUTES',           6);
+define('LDAPDATA_MAP_ATTRIBUTES_READ_ONLY', 4);
+define('LDAPDATA_MAP_NOTHING',              2);
+
+//////////////////////////////////////////////////////////////////////////////
+// Core API hooks
+
+/**
+ * Implements hook_init()
+ */
+function ldapdata_init() {
+  include_once(drupal_get_path('module', 'ldapdata') .'/ldap_integration/ldapdata.conf.php');
+  require_once(drupal_get_path('module', 'ldapdata') .'/ldap_integration/LDAPInterface.php');
 }
 
 /**
-* Implements hook_user()
-**/
-
-function ldapdata_user($op, &$edit, &$user, $category = NULL) {
-  switch($op) {
+ * Implements hook_user().
+ */
+function ldapdata_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
     case 'categories':
-      return ldapdata_user_categories($user);
+      return _ldapdata_user_categories();
     case 'form':
-      return ldapdata_user_form($user, $category);
+      return _ldapdata_user_form($account, $category);
     case 'load':
-      ldapdata_user_load($user);
+      _ldapdata_user_load($account);
       break;
     case 'login':
-      ldapdata_user_login($user);
+      _ldapdata_user_login($account);
       break;
-    case 'update':
-      ldapdata_user_update($edit, $user, $category);
+    case 'submit':
+      _ldapdata_user_submit($edit, $account, $category);
       break;
     case 'view':
-      return ldapdata_user_view($user);
+      return _ldapdata_user_view($account);
+      break;
   }
 }
+
 /**
-* Implements hook_menu()
-**/
+ * Implements hook_menu().
+ */
 function ldapdata_menu() {
   $items = array();
 
-    $items[] = array(
-      'path' => 'admin/settings/ldapdata',
-      'title' => t('LDAP Data'),
-      'description' => t('Configure LDAP Data'), 
-      'callback' => 'ldapdata_admin_list',
-      'access' => user_access('administer ldap modules'),
-      );
-    $items[] = array( 
-      'path' => 'admin/settings/ldapdata/edit',
-      'title' => t('LDAP DATA'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('ldapdata_admin_edit'),
-      'type' => MENU_CALLBACK,
-      'weight' => 1,
-      'access' => user_access('administer ldap modules'),
-      );
-    $items[] = array( 
-      'path' => 'admin/settings/ldapdata/reset', 
-      'title' => t('LDAP Data'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('ldapdata_admin_edit'),
-      'type' => MENU_CALLBACK,
-      'weight' => 1,
-      'access' => user_access('administer ldap modules'),
-      );
-    $items[] = array( 
-      'path' => 'admin/settings/ldapdata/list', 
-      'title' => t('LDAP Data'),
-      'callback' => 'ldapdata_admin_list',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-      'weight' => 1,
-      'access' => user_access('administer ldap modules'),
-      );       
+  $items['admin/settings/ldap/ldapdata'] = array(
+    'title' => 'Data',
+    'description' => 'Configure LDAP data to Drupal profiles synchronization settings.',
+    'page callback' => 'ldapdata_admin_list',
+    'access arguments' => array('administer ldap modules'),
+    'file' => 'ldapdata.admin.inc',
+  );
+  $items['admin/settings/ldap/ldapdata/edit'] = array(
+    'title' => 'Data',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ldapdata_admin_edit', 4, 5),
+    'type' => MENU_CALLBACK,
+    'weight' => 1,
+    'access arguments' => array('administer ldap modules'),
+    'file' => 'ldapdata.admin.inc',
+  );
+  $items['admin/settings/ldap/ldapdata/reset'] = array(
+    'title' => 'Data',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ldapdata_admin_edit', 4, 5),
+    'type' => MENU_CALLBACK,
+    'weight' => 1,
+    'access arguments' => array('administer ldap modules'),
+    'file' => 'ldapdata.admin.inc',
+  );
+  $items['admin/settings/ldap/ldapdata/list'] = array(
+    'title' => 'Data',
+    'page callback' => 'ldapdata_admin_list',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 1,
+    'access arguments' => array('administer ldap modules'),
+    'file' => 'ldapdata.admin.inc',
+  );
   return $items;
-  
 }
 
-function ldapdata_admin_list() {
-  $result = db_query("SELECT sid, name FROM {ldapauth} WHERE status = '%s' ORDER BY sid", 1);
-  $rows = array();
-  while ($row = db_fetch_object($result)) {
-    $rows[] = array($row->name, l(t('edit'), 'admin/settings/ldapdata/edit/'.$row->name), l(t('reset'), 'admin/settings/ldapdata/reset/'.$row->name));
-  }
+/**
+ * Implements hook_theme().
+ */
+function ldapdata_theme() {
+  return array(
+    'ldapdata_admin_edit' => array(
+      'arguments' => array('form'),
+      'file' => 'ldapdata.theme.inc'
+    ),
+    'ldapdata_ldap_attribute' => array(
+      'arguments' => array('value', 'type'),
+      'file' => 'ldapdata.theme.inc'
+    ),
+  );
+}
 
-  $header = array(
-    t('LDAP Config'),
+//////////////////////////////////////////////////////////////////////////////
+// hook_user() functions
+
+/**
+ * Implements hook_user() categories operation.
+ */
+function _ldapdata_user_categories() {
+  return array(
     array(
-      'data' => t('Operations'),
-      'colspan' => 2
+      'name' => LDAPDATA_USER_DATA,
+      'title' => t(LDAPDATA_USER_TAB),
+      'weight' => 50,
+      'access callback' => 'ldapdata_category_access',
+      'access arguments' => array(1)
     )
-  );  
-  return theme('table', $header, $rows);
+  );
 }
 
-function ldapdata_admin_edit($ldap_name) {
-  global $ldap_attributes;
-  
-  if ((arg(3) == "reset") && ($ldap_name)) {
-    $form['reset_ldap'] = array(
-      '#type' => 'value',
-      '#value' => $ldap_name,
-      );
-    return confirm_form(
-      $form,
-      t('Are you sure you want to reset the groups mapping to defaults ?'),
-      'admin/settings/ldapdata', 
-      t('<em>This action cannot be undone.</p>'), 
-      t('Reset'), 
-      t('Cancel')
-    );
-  }
-  elseif ((arg(3) == "edit") && ($ldap_name)) {
-
-    $result = db_fetch_array(db_query("SELECT ldapdata_mappings, ldapdata_roattrs, ldapdata_rwattrs, ldapdata_binddn, ldapdata_bindpw, ldapdata_bindpw_clear FROM {ldapauth} WHERE name = '%s'", $ldap_name));
-
-    $mappings = unserialize($result['ldapdata_mappings']);
-    $roattrs = unserialize($result['ldapdata_roattrs']);
-    $rwattrs = unserialize($result['ldapdata_rwattrs']);
-    $ldapdata_binddn = $result['ldapdata_binddn'];
-    $ldapdata_bindpw = $result['ldapdata_bindpw']; 
-    $ldapdata_bindpw_clear = $result['ldapdata_bindpw_clear'];       
-    
-    // ATTRIBUTE MAPPING
-    $output = "";
-    $form['ldap_attribute_mapping'] = array(
-      '#type' => 'fieldset',
-      '#title' => 'Drupal-LDAP fields mapping',
-      '#collapsible' => true
-      );
-
-    $form['ldap_attribute_mapping']['ldap-note'] = array(
-      '#value' => t('<p><strong style="color: red;">PLEASE NOTE</strong>: advanced configuration for this module can be set by editing the module\'s config file, located at <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldap_integration/ldapdata.conf.php</em> in your Drupal install.</p>'),
-
-      );
-
-    $form['ldap_attribute_mapping']['ldap_attr_mapping'] = array(
-      '#type' => 'radios',
-      '#title' => 'Should Drupal account fields be mapped to LDAP Attributes?',
-      '#default_value' => $mappings['access'],
-      '#options' => array(
-        LDAP_MAP_ATTRIBUTES => t('Changes in account fields will be mapped to LDAP attributes and back (see <em style="font-style: normal; padding: 1px 3px; border: 1px solid #8888CC; background-color: #DDDDFF">modules/ldap_integration/ldap_integration/ldapdata.conf.php</em>)'),
-        LDAP_MAP_ATTRIBUTES_READ_ONLY => t('Same, but read-only mode.'),
-        LDAP_MAP_NOTHING => t('No attribute mapping will be done at all (<strong><em>Clears any existing mappings</em></strong>)'),
-        ),
-       );
-
-    $profile_fields = _ldapdata_retrieve_profile_fields();
-    $standard_fields = _ldapdata_retrieve_standard_user_fields();
-    $drupal_fields = $profile_fields + $standard_fields;
-    $form['ldap_attribute_mapping']['ldap_drupal_reverse_mapping_pre'] = array(
-      '#value' => t('<div class="form-item"><label>If you selected the first or the second option above, please specify here: </label><table><thead><tr><th> Drupal field</th><th>LDAP attribute</th></tr></thead><tbody>'),
-      );
-
-    $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($ldap_name);
-    foreach ($drupal_fields as $key => $field) {
-      $field_tmp = "ldap_amap-".$key;
-      $_prefix = "<tr><td><label for=\"edit[$field_tmp]\">$field</label></td><td>";
-      $form['ldap_attribute_mapping'][$field_tmp] = array(
-        '#type' => 'textfield',
-        //'#default_value' => $ldap_drupal_reverse_mappings[$key],
-        '#default_value' => $mappings[$field_tmp],
-        '#size' => '20',
-        '#prefix' => $_prefix,
-        '#suffix' => '</td>',
-        );
-    }
-   
-    $form['ldap_attribute_mapping']['ldap_drupal_reverse_mappings_post'] = array(
-      '#value' => '</tbody></table></div>',
-      ); 
-      
-      
-    // ATTRIBUTE ACCESS CONTROL      
-
-    $form["ldap_editable_attributes"] = array(
-      '#type' => 'fieldset',
-      '#title' => 'Attribute Visibility & Access Control',
-      '#collapsible' => TRUE,
-      '#tree' => true,
-      );
-      
-    $form["ldap_editable_attributes"]["ldap_message"] = array(
-      '#value' => t('<p>Users may be able to view their LDAP attributes\' values, as well as edit them. You can configure this feature here.</p>'), 
-      );            
-    
-    foreach ($ldap_attributes as $key => $field) {
-      $fields[$key] = $field[2];
-    }
-
-    foreach ($fields as $attr => $attr_name) { 
-      
-      $ro_options[$attr]  = '';
-      $rw_options[$attr]  = ''; 
-      
-      if (!empty($roattrs) && (in_array($attr, $roattrs))) {
-        $ro_status[] = $attr;
-      }
-      if (!empty($rwattrs) && (in_array($attr, $rwattrs))) {
-        $rw_status[] = $attr;
-      }     
-              
-      $form['ldap_editable_attributes']['ldap_attr_table'][$attr] = array(
-        //'#type' => 'markup',
-        '#value' => $attr_name,
-        );
-
-    }
-       
-    $form['ldap_editable_attributes']['ro_status'] = array(
-      '#type' => 'checkboxes',
-      '#options' => $ro_options,
-      '#default_value' => $ro_status,
-      );
-
-    $form['ldap_editable_attributes']['rw_status'] = array(
-      '#type' => 'checkboxes',
-      '#options' => $rw_options,
-      '#default_value' => $rw_status,
-      );  
-
-    $form['ldap_editable_attributes']['header'] = array(
-      '#type' => 'value',
-      '#value' => array(
-        array('data' => 'Attribute Name'),
-        array('data' => 'Readable by User?'),
-        array('data' => 'Editable by User?'),
-        ));
-
-    // ADVANCED CONFIGURATION        
-
-      $form['advanced'] = array(
-        '#type' => 'fieldset',
-        '#title' => 'Advanced Configuration',
-        '#collapsible' => TRUE,
-        '#collapsed' => TRUE
-        );
-        
-      $form['advanced']['ldap-note'] = array(
-        '#value' => t('<p>When reading/editing attributes, this module logs on to the LDAP directory using the user\'s DN//pass pair. However, many LDAP setups do not allow their users to edit attributes.</p><p>If this is your case, but still you want users to edit their LDAP attributes via Drupal, you should set up an special user on your directory, with special access to edit your users\' attributes. Then this module will use it to log on and edit data.</p>')
-        );  
-      
-      $form['advanced']['ldapdata_binddn'] = array(
-        '#type' => 'textfield',
-        '#title' => t('DN for reading/editing attributes'),
-        '#default_value' => $ldapdata_binddn,
-        '#size' => 50,
-        '#maxlength' => 255,
-        );
-        
-      if ($ldapdata_bindpw_clear || !ldapdata_bindpw) {     
-        $form['advanced']['ldapdata_bindpw'] = array(
-          '#type' => 'password',
-          '#title' => t('Password for reading/editing attributes'),
-          '#size' => 50,
-          '#maxlength' => 255,
-          );
-      }
-      else {
-        // given an option to clear the password
-        $form['advanced']['ldapdata_bindpw_clear'] = array(
-          '#type' => 'checkbox',
-          '#default_value' => false,
-          '#title' => t('Clear current password'),
-          );  
-      }
-
-    // SUBMIT
-    $form['config_name'] = array(
-      '#type' => 'hidden',
-      '#value' => $ldap_name,
-      );   
-      
-    $form['buttons']['submit'] = array(
-      '#type' => 'submit',
-      '#value' => 'Update'
-      );
-           
-    return $form; 
-  }
-  else {
-    drupal_goto('admin/settings/ldapdata');
-  }
-} 
-
-function theme_ldapdata_admin_edit($form) {
-  
-  $output = '';
-  $rows = array();
-  foreach (element_children($form) as $element) {
-    if ($element == "ldap_editable_attributes" ) {
-      foreach (element_children($form['ldap_editable_attributes']['ldap_attr_table']) as $key) {
-        $row = array();
-        $row[] = drupal_render($form['ldap_editable_attributes']['ldap_attr_table'][$key]);
-        $row[] = drupal_render($form['ldap_editable_attributes']['ro_status'][$key]);    
-        $row[] = drupal_render($form['ldap_editable_attributes']['rw_status'][$key]);        
-        $rows[] = $row;     
-      }
-      $form['ldap_editable_attributes']['#children'] .= drupal_render($form['ldap_editable_attributes']['ldap_message']);      
-      $form['ldap_editable_attributes']['#children'] .= theme('table', $form['ldap_editable_attributes']['header']['#value'], $rows);
-      $output .= drupal_render($form['ldap_editable_attributes']);            
-    }
-    else {
-      $output .= drupal_render($form[$element]);
-    }
-  }
-
-  $output .= drupal_render($form);
-  
-  return $output;
-    
-}
-
-function ldapdata_admin_edit_submit($form_id, $form_values) {
-
-  $config_name = $form_values['config_name'];    
-  // Attribute Mapping
-  $attr_mapping_access = $form_values['ldap_attr_mapping'];
-  
-  $attr_mappings['access'] = $attr_mapping_access;
-  
-  if ($attr_mapping_access >=4 ) {   
-    foreach (element_children($form_values) as $attr) {
-      if (preg_match("/ldap_amap/", $attr) && $form_values[$attr]) {
-        // match found
-        $attr_mappings[$attr] = $form_values[$attr];
-      }
-    }  
-  }
-  $serialized_data = serialize($attr_mappings);
-  // Attribute Access Control
-  $ro_tmp = array_filter($form_values['ldap_editable_attributes']['ro_status']);
- 
-  if (!empty($ro_tmp)) {
-    foreach ($ro_tmp as $ro_attr) {
-      $ro_attrs[] = $ro_attr;
-    }
-    $serialized_ro_attrs = serialize($ro_attrs);
-  }
-  
-  $rw_tmp = array_filter($form_values['ldap_editable_attributes']['rw_status']);  
-  if (!empty($rw_tmp)) {
-    foreach ($rw_tmp as $rw_attr) {
-      $rw_attrs[] = $rw_attr;
-    }
-    $serialized_rw_attrs = serialize($rw_attrs);
-  }
-  
-  if ( !$form_values['ldapdata_bindpw_clear'] && $form_values['ldapdata_bindpw']) {
-    db_query("UPDATE {ldapauth} SET ldapdata_mappings = '%s', ldapdata_roattrs = '%s', ldapdata_rwattrs = '%s', ldapdata_binddn = '%s', ldapdata_bindpw = '%s', ldapdata_bindpw_clear = '%d' WHERE name = '%s'", $serialized_data, $serialized_ro_attrs, $serialized_rw_attrs, $form_values['ldapdata_binddn'], $form_values['ldapdata_bindpw'], $form_values['ldapdata_bindpw_clear'], $config_name);   
-  }
-  else {
-    // set the clear password switch
-    db_query("UPDATE {ldapauth} SET ldapdata_mappings = '%s', ldapdata_roattrs = '%s', ldapdata_rwattrs = '%s', ldapdata_binddn = '%s', ldapdata_bindpw_clear = '%d' WHERE name = '%s'", $serialized_data, $serialized_ro_attrs, $serialized_rw_attrs, $form_values['ldapdata_binddn'], $form_values['ldapdata_bindpw_clear'], $config_name);   
-  }
-    
-  return 'admin/settings/ldapdata/edit/'.$config_name;
-}  
 /**
- * Implements hook_categories();
+ * Checks if LDAP data category should be printed.
  */
-function ldapdata_user_categories(&$user) {
-  $ret = null;
+function ldapdata_category_access($account) {
+  if (!isset($account->ldap_authentified))
+    return FALSE;
 
-  // we do this as opposed to calling _ldapdata_ldap_info() to save on the multiple sql queries
-  $result = db_fetch_array(db_query("SELECT ldapdata_mappings, ldapdata_rwattrs FROM {ldapauth} WHERE name = '%s'", $user->ldap_config));
-  $mappings = unserialize($result['ldapdata_mappings']);
+  // We do this as opposed to calling _ldapdata_ldap_info() to save on the multiple sql queries.
+  $row = db_fetch_object(db_query("SELECT ldapdata_mappings, ldapdata_rwattrs FROM {ldapauth} WHERE sid = %d", $account->ldap_config));
+  $mappings = unserialize($row->ldapdata_mappings);
   $mapping_type = $mappings['access'];
- 
-  $rwattrs = $result['ldapdata_rwattrs']; 
-  
-  if (($mapping_type == LDAP_MAP_ATTRIBUTES) && (!empty($rwattrs)) && arg(2) == 'edit') {
-    $ret = array(
-      array(
-        'name' => LDAP_CATEGORY_USER_DATA,
-        'title' => LDAP_USER_DATA_EDIT_TAB,
-        'weight' => 50
-        )
-      );
-  }
-  return $ret;      
+  $rwattrs = $row->ldapdata_rwattrs;
+
+  return ($mapping_type == LDAPDATA_MAP_ATTRIBUTES && !empty($rwattrs)) ? TRUE : FALSE;
 }
 
 /**
- * Only used for editable LDAP attributes with no Drupal equivalents
+ * Implements hook_user() categories operation.
+ * Only used for editable LDAP attributes with no Drupal equivalents.
  */
-function ldapdata_user_form(&$user, $category) {
-  global $ldap_attributes, $ldapdata_ldap;
+function _ldapdata_user_form(&$user, $category) {
+  global $_ldapdata_ldap;
   $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
-  $attributes = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
+  $attributes = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
-  if ((!$user->ldap_dn) || 
-      ($category != LDAP_CATEGORY_USER_DATA) ||
-      ($mapping_type != LDAP_MAP_ATTRIBUTES) || 
-      (!$attributes)) {
-    return null;   
-  }
-  
-  $bind_info = _ldapdata_edition($user);  
-  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
-    watchdog('user', "User form: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
+  if (!isset($user->ldap_dn) || $category != LDAPDATA_USER_DATA || $mapping_type != LDAPDATA_MAP_ATTRIBUTES || !$attributes)
+    return;
+
+  $bind_info = _ldapdata_edition($user);
+  if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
+    watchdog('ldapdata', "User form: user %name's data could not be read in the LDAP directory", array('%name' => $user->name), WATCHDOG_WARNING);
     return;
   }
-  
-  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
 
-  $output = '';
+  $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
+
   $form['ldap_attributes'] = array(
-    '#title' => LDAP_SETTINGS_GROUP_STRING,
+    '#title' => t(LDAPDATA_PROFILE),
     '#type' => 'fieldset',
-    );
+  );
 
-  foreach ($attributes as $attribute) {
-
-    $attr_info = $ldap_attributes[$attribute];
-    if ($attr_info) {
+  $ldapdata_attributes = ldapdata_attributes();
+  foreach ($ldapdata_attributes as $attr_name => $attr_info) {
+    if (in_array($attr_name, $attributes)) {
       array_shift($attr_info);
-      $value = $entry[strtolower($attribute)][0];
-      $form['ldap_attributes'][$attribute] = _ldapdata_attribute_form($attribute, $value, $attr_info);
+      $value = $entry[strtolower($attr_name)][0];
+      $form['ldap_attributes'][$attr_name] = _ldapdata_attribute_form($attr_name, $value, $attr_info);
     }
   }
-  
-  $ldapdata_ldap->disconnect();
-  
-  return $form; 
+
+  $_ldapdata_ldap->disconnect();
+
+  return $form;
 }
 
-function ldapdata_user_load(&$user) {
-  global $ldapdata_ldap;
-  
-  // setup the global $ldapdata_ldap object
-  if (!_ldapdata_ldap_init($user)) {
+/**
+ * Implements hook_user() load operation.
+ */
+function _ldapdata_user_load(&$user) {
+  global $_ldapdata_ldap;
+
+  // Setup the global $_ldapdata_ldap object.
+  if (!_ldapdata_init($user))
     return;
-  }
-  
+
   $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
 
-  // See http://drupal.org/node/91786 about user_node()
+  $authmap = user_get_authmaps($user->name);
+  // See http://drupal.org/node/91786 about user_node().
   // User can be edited by the user or by other authorized users.
-  
-  if ((!$user->ldap_authentified) || ($mapping_type == LDAP_MAP_NOTHING)) {
-    return;
-  }
-  
-  $bind_info = _ldapdata_edition($user);  
-  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
-    watchdog('user', "User load: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
+  if (!isset($authmap['ldapauth']) || ($mapping_type == LDAPDATA_MAP_NOTHING)) {
     return;
   }
 
-  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
-   if ($entry) {
+  $bind_info = _ldapdata_edition($user);
+  if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
+    watchdog('ldapdata', "User load: user %name's data could not be read in the LDAP directory", array('%name' => $user->name), WATCHDOG_WARNING);
+    return;
+  }
+
+  if ($entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn)) {
     $ldap_drupal_mappings = array_flip(_ldapdata_reverse_mappings($user->ldap_config));
     foreach ($ldap_drupal_mappings as $ldap_attr => $drupal_field) {
-       if (isset($user->$drupal_field) && $ldap_attr && $drupal_field != 'access') {
-        if ($drupal_field != 'pass') {
+      if (isset($user->$drupal_field) && $ldap_attr && $drupal_field != 'access') {
+        if ($drupal_field != 'pass' && $drupal_field != 'mail') {
           $user->$drupal_field = $entry[strtolower($ldap_attr)][0];
         }
       }
     }
-    ldapdata_user_profile_load($user);    
+    _ldapdata_user_profile_load($user);
   }
 
-  $ldapdata_ldap->disconnect();
-
+  $_ldapdata_ldap->disconnect();
 }
 
+/**
+ * Implements hook_user() login operation.
+ */
+function _ldapdata_user_login(&$user) {
+  global $_ldapdata_ldap;
 
+  // The whole point of implementing this hook is getting the
+  // e-mail address written to the DB as soon as possible.
+  // This is because it could not be written along with the rest
+  // of the user info when the user was first created in
+  // _ldapauth_ldap_login at the ldapauth module.
 
-function ldapdata_user_profile_load(&$user) {
-  global $ldapdata_ldap;  
+  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
+  $authmap = user_get_authmaps($user->name);
+  if (!isset($authmap['ldapauth']) || ($mapping_type == LDAPDATA_MAP_NOTHING)) {
+    return;
+  }
+
+  $bind_info = _ldapdata_edition($user);
+  if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
+    watchdog('ldapdata', "User login: user %name's data could not be read in the LDAP directory", array('%name' => $user->name), WATCHDOG_WARNING);
+    return;
+  }
+
+  $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
+  $_ldapdata_ldap->disconnect();
+
+  $d2l_mappings = _ldapdata_reverse_mappings($user->ldap_config);
+
+  if (isset($d2l_mappings['mail'])) {
+    $mail_attr = drupal_strtolower($d2l_mappings['mail']);
+    $mail = $entry[$mail_attr][0];
+    if ($mail != $user->mail) {
+      user_save($user, array('mail' => $mail));
+      $user->mail = $mail;
+    }
+  }
+}
+
+/**
+ * Implements hook_user() submit operation.
+ */
+function _ldapdata_user_submit(&$edit, &$user, $category) {
+  global $_ldapdata_ldap;
+
+  // Setup the global $_ldapdata_ldap object.
+  if (!_ldapdata_init($user))
+    return;
+
+  $authmap = user_get_authmaps($user->name);
+  if (!isset($authmap['ldapauth']))
+    return;
+
+  // Three cases here:
+  //   1. User logged on and editing his LDAP entry attributes ($category == LDAPDATA_USER_DATA).
+  //   2. User logged on and editing his Drupal account settings ($category == 'account').
+  //   3. OBSOLETE FROM 4.7: Password lost and being updated (category == 'account').
+  // Additionally:
+  //   4. User logged on and editing his profile.module fields ($category == *any*).
+  $writeout = array();
+
+  $editables = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
+  if ($category == LDAPDATA_USER_DATA && $editables) {
+    // Case 1:
+    $writeout = array_merge($writeout, _ldapdata_user_update_ldap_attributes($edit, $user));
+  }
+  else if ($category == 'account') {
+    // Cases 2 && 3:
+    $writeout = array_merge($writeout, _ldapdata_user_update_drupal_account($edit, $user));
+  }
+
+  // And now, case 4:
+  $writeout = array_merge($writeout, _ldapdata_user_update_profile($edit, $user));
+  if ($writeout) {
+    $bind_info = _ldapdata_edition($user);
+    if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
+      watchdog('ldapdata', "User update: user %name's data could not be updated in the LDAP directory", array('%name' => $user->name), WATCHDOG_NOTICE);
+      return;
+    }
+    $_ldapdata_ldap->writeAttributes($user->ldap_dn, $writeout);
+  }
+  $_ldapdata_ldap->disconnect();
+}
+
+/**
+ * Implements hook_user() view operation.
+ */
+function _ldapdata_user_view(&$user) {
+  global $_ldapdata_ldap;
+
+  // Setup the global $_ldapdata_ldap object.
+  if (!_ldapdata_init($user))
+    return;
+
+  $authmap = user_get_authmaps($user->name);
+  if (!isset($authmap['ldapauth']))
+    return;
+
+  $bind_info = _ldapdata_edition($user);
+  if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
+    watchdog('ldapdata', "User view: user %name's data could not be read in the LDAP directory", array('%name' => $user->name), WATCHDOG_WARNING);
+    return;
+  }
+
+  $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
+  $ldapdata_attributes = ldapdata_attributes();
+  $allowed_attrs = (array) _ldapdata_ldap_info($user, 'ldapdata_roattrs');
+  $items = array();
+  $i = 0;
+  foreach ($ldapdata_attributes as $attr_name => $attr_info) {
+    if (in_array($attr_name, $allowed_attrs)) {
+      $item = array(
+        '#type' => 'user_profile_item',
+        '#title' => $attr_info[2],
+        '#value' => theme('ldapdata_ldap_attribute', $entry[strtolower($attr_name)][0], $attr_info[0]),
+        '#weight' => $i++,
+      );
+      $items[$attr_name] = $item;
+    }
+  }
+  if (!empty($items)) {
+    $user->content[t(LDAPDATA_PROFILE)] = array_merge(array(
+      '#type' => 'user_profile_category',
+      '#title' => t(LDAPDATA_PROFILE),
+      '#attributes' => array('class' => 'ldapdata-entry'),
+      '#weight' => LDAPDATA_PROFILE_WEIGHT,
+    ), $items);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Auxiliary functions
+
+/**
+ * Sync LDAP data to profile.
+ *
+ * @param $user
+ *   A user object.
+ *
+ * @return
+ */
+function _ldapdata_user_profile_load(&$user) {
+  global $_ldapdata_ldap;
   $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($user->ldap_config);
-  $ldap_drupal_mappings = array_flip($ldap_drupal_reverse_mappings);  
+  $ldap_drupal_mappings = array_flip($ldap_drupal_reverse_mappings);
 
-  // Retrieve profile fields list
+  // Retrieve profile fields list.
   $profile_fields = _ldapdata_retrieve_profile_fields();
 
-  // compare against mapped fields list
+  // Compare against mapped fields list.
   $writeout = array();
-  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
+  $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
   foreach ($profile_fields as $key => $field ) {
     if (in_array($key, $ldap_drupal_mappings)) {
       $writeout[$field] = $entry[strtolower($ldap_drupal_reverse_mappings[$key])][0];
     }
   }
-  // Write coincidences to Drupal DB
+
+  // Write coincidences to Drupal.
   foreach ($writeout as $field => $value) {
     $result = db_fetch_array(db_query("SELECT fid FROM {profile_fields} WHERE name = '%s'", $field));
     $fid = $result['fid'];
     $uid = $user->uid;
-    // does the user have a value for this field ? then update it : otherwise create it
-    $result = db_fetch_array(db_query("SELECT value FROM {profile_values} WHERE fid = '%d' AND uid = '%d'", $fid, $uid));
-    if ($result) {
+
+    // Does the user have a value for this field ? then update it : otherwise create it.
+    $row = db_fetch_array(db_query("SELECT value FROM {profile_values} WHERE fid = '%d' AND uid = '%d'", $fid, $uid));
+    if ($row) {
       db_query("UPDATE {profile_values} SET value = '%s' WHERE fid = '%d' AND uid = '%d'", $value, $fid, $uid);
     }
     else {
@@ -537,127 +399,66 @@ function ldapdata_user_profile_load(&$user) {
   }
 }
 
-function ldapdata_user_login(&$user) {
-  global $ldapdata_ldap;
-  
-  // The whole point of implementing this hook is getting the
-  // e-mail address written to the DB as soon as possible.
-  // This is because it could not be written along with the rest
-  // of the user info when the user was first created in
-  // _ldapauth_ldap_login at the ldapauth module
- 
-  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');   
-  if ((!$user->ldap_authentified) || ($mapping_type = LDAP_MAP_NOTHING)) { 
-    return;
-  } 
-
-  $bind_info = _ldapdata_edition($user);  
-  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
-    watchdog('user', "User login: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
-    return;
-  }
-
-  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
-  $ldapdata_ldap->disconnect();
-
-  $d2l_mappings = _ldapdata_reverse_mappings($user->ldap_config);
-
-  if (isset($d2l_mappings['mail'])) {
-    $mail_attr = strtolower($d2l_mappings['mail']);
-    $mail = $entry[$mail_attr][0];
-    if ($mail != $user->mail) {
-      user_save($user, array('mail' => $mail));
-    }
-  }
-}
-
-function ldapdata_user_update(&$edit, &$user, $category) {
-  global $ldapdata_ldap;
-  
-  if (!$user->ldap_authentified) {
-    return;
-  }
-  // Three cases here:
-  //   1. User logged on and editing his LDAP entry attributes ($category == LDAP_CATEGORY_USER_DATA).
-  //   2. User logged on and editing his Drupal account settings ($category == 'account').
-  //   3. OBSOLETE FROM 4.7: Password lost and being updated (category == 'account').
-  // Additionally:
-  //   4. User logged on and editing his profile.module fields ($category == *any*).
+/**
+ * Find out which LDAP attributes should be synced back to LDAP..
+ *
+ * @param $edit
+ *   A submitted form data.
+ * @param $user
+ *   A user object.
+ *
+ * @return
+ *   An associated array of attributes to write to LDAP.
+ */
+function _ldapdata_user_update_ldap_attributes(&$edit, &$user) {
   $writeout = array();
+  $editables = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
-  // So, case 1
-  $editables = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');  
-  if ($category == LDAP_CATEGORY_USER_DATA && $editables) {
-    $writeout = array_merge($writeout, ldapdata_user_update_ldap_attributes($edit, $user));
-  }
-  // Cases 2 && 3
-  else if ($category == 'account') {
-    $writeout = array_merge($writeout, ldapdata_user_update_drupal_account($edit, $user));
-  }
-
-  // And now, case 4
-  $writeout = array_merge($writeout, ldapdata_user_update_profile($edit, $user));
-  if ($writeout) {
-    $bind_info = _ldapdata_edition($user);  
-    if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
-      watchdog('user', "User update: user $user->name's data could not be updated in the LDAP directory", WATCHDOG_NOTICE);
-      return;
-    }
-    
-    $ldapdata_ldap->writeAttributes($user->ldap_dn, $writeout);
-  }
-
-  $ldapdata_ldap->disconnect();
-}
-
-function ldapdata_user_update_ldap_attributes(&$edit, &$user) {
-  global $ldapdata_ldap;
-  $writeout = array();
-  
-  $editables = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');  
-  
   foreach ($edit as $edit_attr => $edit_val) {
     // Preventing a POST data injection: we check allowance to write value.
     if (array_search($edit_attr, $editables) !== FALSE) {
       $writeout[$edit_attr] = $edit_val;
-      $edit[$edit_attr] = null;
+      $edit[$edit_attr] = NULL;
     }
   }
 
   return $writeout;
 }
 
-function ldapdata_user_update_drupal_account(&$edit, &$user) {
-  $ldap_config_name = $user->ldap_config;
-  
-  // we do this as opposed to calling _ldapdata_ldap_info() to save on the multiple sql queries
-  $result = db_fetch_array(db_query("SELECT ldapdata_mappings, encrypted FROM {ldapauth} WHERE name = '%s'", $ldap_config_name));
-  $mappings = unserialize($result['ldapdata_mappings']);
+/**
+ * Find out which Drupal attributes should be synced back to LDAP..
+ *
+ * @param $edit
+ *   A submitted form data.
+ * @param $user
+ *   A user object.
+ *
+ * @return
+ *   An associated array of attributes to write to LDAP.
+ */
+function _ldapdata_user_update_drupal_account(&$edit, &$user) {
+  $sid = $user->ldap_config;
+
+  // We do this as opposed to calling _ldapdata_ldap_info() to save on the multiple sql queries.
+  $row = db_fetch_object(db_query("SELECT ldapdata_mappings, encrypted FROM {ldapauth} WHERE sid = %d", $sid));
+  $mappings = unserialize($row->ldapdata_mappings);
   $mapping_type = $mappings['access'];
-  $encr = $result['encrypted'];
-  
-  $account_updated_in_ldap = ($mapping_type == LDAP_MAP_ATTRIBUTES);
+  $encr = $row->encrypted;
+  $account_updated_in_ldap = ($mapping_type == LDAPDATA_MAP_ATTRIBUTES);
 
   $writeout = array();
   if ($user->ldap_dn && $account_updated_in_ldap) {
-    // Case 2: updating account data
+    // Case 2: updating account data.
     $d2l_map = _ldapdata_reverse_mappings($user->ldap_config);
     foreach ($edit as $key => $value) {
-      $ldap_attr = $d2l_map[$key];
-      if ($ldap_attr) {
+      if ($ldap_attr = isset($d2l_map[$key]) ? $d2l_map[$key] : NULL) {
         if ($key == 'pass') {
           if ($value) {
-            $pw = $encr ? '{md5}' . base64_encode(pack('H*', md5($value))) : $value;
+            $pw = $encr ? '{md5}'. base64_encode(pack('H*', md5($value))) : $value;
             $writeout[$ldap_attr] = $pw;
           }
-
-          // If authentication is being done in "LDAP only" mode, passwords
-          // should not be written to the database, or users would be able
-          // to log in even after removing their LDAP entry
-          if (variable_get('ldap_login_process', LDAP_FIRST_LDAP) == LDAP_FIRST_LDAP) {
-            $edit['pass'] = null;
-          }
-        } else {
+        }
+        else {
           $writeout[$ldap_attr] = $value;
         }
       }
@@ -666,68 +467,52 @@ function ldapdata_user_update_drupal_account(&$edit, &$user) {
   return $writeout;
 }
 
-function ldapdata_user_update_profile(&$edit, &$user) {
-  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');  
-  if ($mapping_type != LDAP_MAP_ATTRIBUTES) {
+/**
+ * Find out which profile attributes should be synced back to LDAP..
+ *
+ * @param $edit
+ *   A submitted form data.
+ * @param $user
+ *   A user object.
+ *
+ * @return
+ *   An associated array of attributes to write to LDAP.
+ */
+function _ldapdata_user_update_profile(&$edit, &$user) {
+  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
+  if ($mapping_type != LDAPDATA_MAP_ATTRIBUTES)
     return array();
-  }
 
   $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($user->ldap_config);
 
-  // Retrieve profile fields list
+  // Retrieve profile fields list.
   $profile_fields = _ldapdata_retrieve_profile_fields();
-  // Compare against $edit list
+
+  // Compare against $edit list.
   $writeout = array();
   foreach ($profile_fields as $key => $field) {
     if (isset($edit[$field]) && isset($ldap_drupal_reverse_mappings[$key])) {
       $writeout[$ldap_drupal_reverse_mappings[$key]] = $edit[$field];
     }
   }
-
   return $writeout;
 }
 
-function ldapdata_user_view(&$user) {
-  global $ldapdata_ldap, $ldap_attributes;
-  if (!$user->ldap_authentified) {
-    return;
-  }
-
-  $bind_info = _ldapdata_edition($user);  
-  if (!$ldapdata_ldap->connect($bind_info[0], $bind_info[1])) {
-    watchdog('user', "User view: user $user->name's data could not be read in the LDAP directory", WATCHDOG_WARNING);
-    return;
-  }
-
-  $entry = $ldapdata_ldap->retrieveAttributes($user->ldap_dn);
-  $ret = array();
-  
-  $allowed_attrs = _ldapdata_ldap_info($user, 'ldapdata_roattrs');
-
-  if ($allowed_attrs) {
-    foreach($allowed_attrs as $attribute) {
-      $item = array();
-      $item['title'] = $ldap_attributes[$attribute][2];
-      $item['value'] = theme('ldapdata_ldap_attribute', $entry[strtolower($attribute)][0], $ldap_attributes[$attribute][0]);
-      $item['class'] = 'attribute';
-      $ret[LDAP_SETTINGS_GROUP_STRING][] = $item;
-    }
-  }
-
-  $ldapdata_ldap->disconnect();
-
-  return $ret;
-}
-
-
-/*********************************
- *    3. Auxiliary functions     *
- *********************************/
-
-function _ldapdata_attribute_form($attrname, $value, $info) {  
-  $type = array_shift($info);
-
-  switch($type) {
+/**
+ * Create HTML form element for the writtable LDAP attribute.
+ *
+ * @param $attrname
+ *   A LDAP attribute name.
+ * @param $value
+ *   A current value in LDAP.
+ * @param $info
+ *   An array with the HTML from element definitions.
+ *
+ * @return
+ *   An array of the form element.
+ */
+function _ldapdata_attribute_form($attrname, $value, $info) {
+  switch (array_shift($info)) {
     case 'textfield':
       $form = array(
         '#type' => 'textfield',
@@ -741,7 +526,6 @@ function _ldapdata_attribute_form($attrname, $value, $info) {
       );
       break;
     case 'password':
-// TODO: fix this
       $form = array(
         '#type' => 'password',
         '#title' => array_shift($info),
@@ -755,161 +539,163 @@ function _ldapdata_attribute_form($attrname, $value, $info) {
   return $form;
 }
 
+/**
+ * Retrieve profile fields.
+ *
+ * @return
+ *   An array of the form element.
+ */
 function _ldapdata_retrieve_profile_fields() {
-
-  $sql = 'SELECT * FROM {profile_fields}';
-  $result = db_query($sql);
   $fields = array();
-  while ($row = db_fetch_object($result)) {
+  if (module_exists('profile')) {
+    $result = db_query("SELECT * FROM {profile_fields}");
+    while ($row = db_fetch_object($result)) {
       $fields[$row->fid] = $row->name;
+    }
   }
   return $fields;
 }
 
+/**
+ * Retrieve drupal user fields which can be synced with LDAP.
+ *
+ * @return
+ *   An array of user fields.
+ */
 function _ldapdata_retrieve_standard_user_fields() {
 
-  // pablom - 
-  //    This commented code below would return all possible values,
-  //  but maybe that's not appropriate.
+  // pablom -
+  // This commented code below would return all possible values,
+  // but maybe that's not appropriate.
   //
-  //   $result = db_query('SHOW COLUMNS FROM {users}');
-  // 
-  //   $fields = array();
-  //   while ($row = db_fetch_object($result)) {
-  //     $fields[] = $row->Field;
-  //   }
+  // $fields = array();
+  // $result = db_query('SHOW COLUMNS FROM {users}');
+  // while ($row = db_fetch_object($result)) {
+  //   $fields[] = $row->Field;
+  // }
 
-  //    Rather, I'll use my benevolent dictator powers
-  //  to return only sensible ones
-  $fields['mail'] = 'mail';
-  $fields['pass'] = 'pass';
-  $fields['signature'] = 'signature';
-
-  return $fields;   
+  //  Rather, I'll use my benevolent dictator powers
+  //  to return only sensible ones.
+  $fields = array(
+    'mail' => 'mail',
+    'pass' => 'pass',
+    'signature' => 'signature',
+  );
+  return $fields;
 }
 
-function _ldapdata_reverse_mappings($config) {
-  
-  $ret = array();
-  $result = db_fetch_array(db_query("SELECT ldapdata_mappings FROM {ldapauth} WHERE name = '%s'", $config));
-  $mappings = unserialize($result['ldapdata_mappings']);
-  
+/**
+ * Retrieve reverse LDAP to drupal mappings.
+ *
+ * @return
+ *   An array of drupal keys pointing to LDAP attributes.
+ */
+function _ldapdata_reverse_mappings($sid) {
+  $map = array();
+  $row = db_fetch_object(db_query("SELECT ldapdata_mappings FROM {ldapauth} WHERE sid = %d", $sid));
+  $mappings = unserialize($row->ldapdata_mappings);
+
   if (is_array($mappings)) {
     foreach ($mappings as $key => $value) {
       $drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key);
       $ldap_attr = $value;
       if ($drupal_key && $ldap_attr) {
-        $ret[$drupal_key] = $ldap_attr;
+        $map[$drupal_key] = $ldap_attr;
       }
     }
   }
-  return $ret;
+  return $map;
 }
 
+/**
+ * Retrieve LDAP write credentials.
+ *
+ * @param $user
+ *   An user object.
+ *
+ * @return
+ *   An array with the LDAP write username and password..
+ */
+function _ldapdata_edition(&$user, $sid = NULL) {
+  $row = db_fetch_object(db_query("SELECT ldapdata_binddn, ldapdata_bindpw FROM {ldapauth} WHERE sid = %d", isset($sid) ? $sid : $user->ldap_config));
 
-function _ldapdata_edition(&$user) {  
-  $ldap_config_name = $user->ldap_config;
-  $ret[] = array('','');
-  
-  $result = db_fetch_array(db_query("SELECT ldapdata_binddn, ldapdata_bindpw FROM {ldapauth} WHERE name = '%s'", $ldap_config_name));
-  $dn = $result['ldapdata_binddn'];
-  $pass = $result['ldapdata_bindpw'];
-    
-  if ($dn) {
-    $ret[0] = $dn;
-  }
-  else {
-    $ret[0] = isset($_SESSION['ldap_login']['dn']) ? $_SESSION['ldap_login']['dn'] : '';
-  }
-
-  if ($pass) {
-    $ret[1] = $pass;
-  }
-  else {
-    $ret[1] = isset($_SESSION['ldap_login']['pass']) ? $_SESSION['ldap_login']['pass'] : '';  
-  }
-   
-  return $ret;  
-  
+  return array(
+    'dn' => $row->ldapdata_binddn ? $row->ldapdata_binddn : (isset($_SESSION['ldap_login']['dn']) ? $_SESSION['ldap_login']['dn'] : ''),
+    'pass' => $row->ldapdata_bindpw ? $row->ldapdata_bindpw : (isset($_SESSION['ldap_login']['pass']) ? $_SESSION['ldap_login']['pass'] : ''),
+  );
 }
 
-function _ldapdata_ldap_info(&$user, $req ) {
+/**
+ * Initiates the LDAPInterfase class.
+ *
+ * @param $user
+ *   An user object.
+ *
+ * @return
+ */
+function _ldapdata_init(&$user, $sid = NULL) {
+  global $_ldapdata_ldap;
 
-  $ldap_config_name = $user->ldap_config;
-  $ret = null;
-  
-  if (!$ldap_config_name) {
-    $ret = null;
+  if (!isset($sid) && empty($user->ldap_config))
+    return;
+
+  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", isset($sid) ? $sid : $user->ldap_config))) {
+
+    // Other modules can invoke user load from hook_init() before ldapdata.
+    require_once(drupal_get_path('module', 'ldapdata') .'/ldap_integration/LDAPInterface.php');
+
+    $_ldapdata_ldap = new LDAPInterface();
+    $_ldapdata_ldap->setOption('sid', $row->sid);
+    $_ldapdata_ldap->setOption('name', $row->name);
+    $_ldapdata_ldap->setOption('server', $row->server);
+    $_ldapdata_ldap->setOption('port', $row->port);
+    $_ldapdata_ldap->setOption('tls', $row->tls);
+    $_ldapdata_ldap->setOption('encrypted', $row->encrypted);
+    $_ldapdata_ldap->setOption('basedn', $row->basedn);
+    $_ldapdata_ldap->setOption('user_attr', $row->user_attr);
+    if (function_exists('ldapdata_attribute_filter'))
+      $_ldapdata_ldap->setOption('attr_filter', 'ldapdata_attribute_filter');
+
+    return $_ldapdata_ldap;
   }
+  return FALSE;
+}
 
-  $result = db_fetch_array(db_query("SELECT * FROM {ldapauth} WHERE name = '%s'", $ldap_config_name));  
- 
+/**
+ * Retrieve the saved ldapdata saved setting.
+ *
+ * @param $user
+ *   An user object.
+ * @param $req
+ *   An attribute name.
+ *
+ * @return
+ *   The attribute value.
+ */
+function _ldapdata_ldap_info(&$user, $req) {
+  $sid = isset($user->ldap_config) ? $user->ldap_config : NULL;
+
+  if (!isset($sid))
+    return;
+
+  static $info = array();
+  if (!isset($info[$sid]))
+    $info[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
+
   switch ($req) {
     case 'mapping_type':
-      $mappings = unserialize($result['ldapdata_mappings']);
-      $ret = $mappings['access'];
-      break;
+      $mappings = unserialize($info[$sid]->ldapdata_mappings);
+      return $mappings['access'];
     case 'ldapdata_roattrs':
-      $ret = unserialize($result['ldapdata_roattrs']);
-      break;
+      return !empty($info[$sid]->ldapdata_roattrs) ? unserialize($info[$sid]->ldapdata_roattrs) : array();
     case 'ldapdata_rwattrs':
-      $ret = unserialize($result['ldapdata_rwattrs']);
-      break;
+      return !empty($info[$sid]->ldapdata_rwattrs) ? unserialize($info[$sid]->ldapdata_rwattrs) : array();
     case 'ldapdata_binddn':
-      $ret = $result['ldapdata_binddn'];
-      break;
+      return $info[$sid]->ldapdata_binddn;
     case 'ldapdata_bindpw':
-      $ret = $result['ldapdata_bindpw']; 
-      break;
+      return $info[$sid]->ldapdata_bindpw;
     case 'encrypted':
-      $ret = $result['encrypted'];
-      break;
-    default:
-      $ret = null;
-      break;
+      return $info[$sid]->encrypted;
   }
-  
-  return $ret;
 }
 
-function _ldapdata_ldap_init(&$user) {
-  global $ldapdata_ldap;
-  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '%s' AND name = '%s'", 1, $user->ldap_config))) {
-    $ldapdata_ldap = new LDAPInterface();
-    $ldapdata_ldap->setOption('name', $row->name);
-    $ldapdata_ldap->setOption('server', $row->server);
-    $ldapdata_ldap->setOption('port', $row->port);
-    $ldapdata_ldap->setOption('tls', $row->tls);
-    $ldapdata_ldap->setOption('encrypted', $row->encrypted);
-    $ldapdata_ldap->setOption('basedn', $row->basedn);
-    $ldapdata_ldap->setOption('user_attr', $row->user_attr);
-    return $ldapdata_ldap;
-  }
-  else {
-    return;
-  }  
-}
-
-
-
-/*********************************
- *          4. Themes            *
- *********************************/
-
-function theme_ldapdata_ldap_attribute($value, $type) {
-  switch($type) {
-    case 'url':
-      $ret = strpos($value, '://') ? $value : "http://$value";
-      $ret = "<a href=\"$ret\">$ret</a>";
-      break;
-    case 'txt':
-    default:
-      $ret = $value;
-      break;
-  }
-
-  return $ret;
-}
-
-
-?>
