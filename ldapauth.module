@@ -136,10 +136,12 @@ function ldapauth_user($op, &$edit, &$account, $category = NULL) {
         // If authentication is being done in "LDAP only" mode, passwords
         // should not be written to the database, or users would be able
         // to log in even after removing their LDAP entry.
-        if (isset($account->ldap_authentified) && (LDAPAUTH_LOGIN_PROCESS == LDAPAUTH_AUTH_EXCLUSIVED || !LDAPAUTH_SYNC_PASSWORDS)) {
+        if (isset($account->ldap_authentified) && (LDAPAUTH_LOGIN_PROCESS == LDAPAUTH_AUTH_EXCLUSIVED || !LDAPAUTH_SYNC_PASSWORDS))
           $edit['pass'] = NULL;
-        }
       }
+
+      if (LDAPAUTH_ALTER_EMAIL_FIELD == LDAPAUTH_EMAIL_FIELD_REMOVE)
+        unset($edit['mail']);
       break;
     case 'view':
       if (user_access('administer users') && isset($account->ldap_authentified) && $account->ldap_dn) {
