@@ -1,48 +1,98 @@
 <?php
 // $Id$
+
+/**
+ * @file
+ * ldapfroups module installation and upgrade code.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+// Core API hooks
+
 /**
  * Implementation of hook_install().
  */
 function ldapgroups_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("ALTER TABLE {ldapauth} ADD (
-        ldap_groups_in_dn int NOT NULL default '0',
-        ldap_groups_in_dn_desc int NOT NULL default '0',
-        ldap_group_dn_attribute varchar(255) default '',
-        ldap_group_attr varchar(255) default '',
-        ldap_groups_in_attr int NOT NULL default '0',
-        ldap_groups_as_entries int NOT NULL default '0',
-        ldap_group_entries varchar(255) default '',
-        ldap_group_entries_attribute varchar(255) default ''
-      )");
-      break;
-    case 'pgsql':
-      db_query("ALTER TABLE {ldapauth} ADD (
-        ldap_groups_in_dn INTEGER NOT NULL DEFAULT 0,
-        ldap_groups_in_dn_desc INTEGER NOT NULL DEFAULT 0,
-        ldap_group_dn_attribute VARCHAR(255) DEFAULT '',
-        ldap_group_attr VARCHAR(255) DEFAULT '',
-        ldap_groups_in_attr INTEGER NOT NULL DEFAULT 0,
-        ldap_groups_as_entries INTEGER NOT NULL DEFAULT 0,
-        ldap_group_entries VARCHAR(255) DEFAULT '',
-        ldap_group_entries_attribute VARCHAR(255) DEFAULT ''
-      )"); 
-      break;
-  }
+  // We're adding to an existing table, not creating a new one.
+  $ret = array();
+
+  db_add_field($ret, 'ldapauth', 'ldapgroups_in_dn', array(
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => '0',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_dn_attribute', array(
+    'type' => 'varchar',
+    'length' => 255,
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_attr', array(
+    'type' => 'varchar',
+    'length' => 255,
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_in_attr', array(
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => '0',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_as_entries', array(
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => '0',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_entries', array(
+    'type' => 'text',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_entries_attribute',  array(
+    'type' => 'varchar',
+    'length' => 255,
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_mappings',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_mappings_filter', array(
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => '0',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_filter_php',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_groups',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+
+  return $ret;
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function ldapgroups_uninstall() {
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_groups_in_dn");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_groups_in_dn_desc");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_group_dn_attribute");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_group_attr");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_groups_in_attr");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_groups_as_entries");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_group_entries");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldap_group_entries_attribute");
+  // We're removing fileds from an existing table, not deleting a whole one.
+  $ret = array();
+
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_in_dn');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_dn_attribute');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_attr');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_in_attr');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_as_entries');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_entries');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_entries_attribute');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_mappings');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_mappings_filter');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_filter_php');
+  db_drop_field($ret, 'ldapauth', 'ldapgroups_groups');
+
+  return $ret;
 }
+
