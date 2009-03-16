@@ -175,7 +175,7 @@ function _ldapdata_user_form(&$user, $category) {
     if (in_array($attr_name, $attributes)) {
       array_shift($attr_info);
       $value = $entry[strtolower($attr_name)][0];
-      $form['ldap_attributes'][$attr_name] = _ldapdata_attribute_form($attr_name, $value, $attr_info);
+      $form['ldap_attributes']['ldap_'. $attr_name] = _ldapdata_attribute_form($value, $attr_info);
     }
   }
 
@@ -414,12 +414,11 @@ function _ldapdata_user_update_ldap_attributes(&$edit, &$user) {
   $writeout = array();
   $editables = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
-  foreach ($edit as $edit_attr => $edit_val) {
+  foreach ($edit as $edit_attr => $value) {
     // Preventing a POST data injection: we check allowance to write value.
-    if (array_search($edit_attr, $editables) !== FALSE) {
-      $writeout[$edit_attr] = $edit_val;
-      $edit[$edit_attr] = NULL;
-    }
+    if (($ldap_attr = preg_replace('/^ldap_(.*)$/', '$1', $edit_attr)) && in_array($ldap_attr, $editables))
+      $writeout[$ldap_attr] = $value;
+      unset($edit[$edit_attr]);
   }
 
   return $writeout;
@@ -501,8 +500,6 @@ function _ldapdata_user_update_profile(&$edit, &$user) {
 /**
  * Create HTML form element for the writtable LDAP attribute.
  *
- * @param $attrname
- *   A LDAP attribute name.
  * @param $value
  *   A current value in LDAP.
  * @param $info
@@ -511,7 +508,7 @@ function _ldapdata_user_update_profile(&$edit, &$user) {
  * @return
  *   An array of the form element.
  */
-function _ldapdata_attribute_form($attrname, $value, $info) {
+function _ldapdata_attribute_form($value, $info) {
   switch (array_shift($info)) {
     case 'textfield':
       $form = array(
