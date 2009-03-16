@@ -149,7 +149,7 @@ function ldapauth_user($op, &$edit, &$account, $category = NULL) {
          '#title' => t(LDAPAUTH_PROFILE),
          '#attributes' => array('class' => 'ldapauth-entry'),
          '#weight' => LDAPAUTH_PROFILE_WEIGHT,
-         'ldap_server' => array('#type' => 'user_profile_item', '#title' => t('LDAP server'), '#value' => l($row->name, 'admin/settings/ldapauth/edit/'. $row->sid), '#weight' => 0),
+         'ldap_server' => array('#type' => 'user_profile_item', '#title' => t('LDAP server'), '#value' => l($row->name, 'admin/settings/ldap/ldapauth/edit/'. $row->sid), '#weight' => 0),
          'ldap_dn' => array('#type' => 'user_profile_item', '#title' => t('LDAP dn'), '#value' => $account->ldap_dn, '#weight' => 1),
         );
       }
