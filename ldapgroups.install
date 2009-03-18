@@ -96,3 +96,29 @@ function ldapgroups_uninstall() {
   return $ret;
 }
 
+function ldapgroups_update_6001() {
+  $ret = array();
+  db_add_field($ret, 'ldapauth', 'ldapgroups_mappings',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_mappings_filter', array(
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'default' => '0',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_filter_php',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapgroups_groups',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  return $ret;
+}
+

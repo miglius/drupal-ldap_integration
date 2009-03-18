@@ -34,8 +34,7 @@ define('LDAPAUTH_DEFAULT_MAIL_ATTR',   variable_get('ldapauth_default_mail_attr'
  * Implements hook_init().
  */
 function ldapauth_init() {
-  include_once(drupal_get_path('module', 'ldapauth') .'/ldap_integration/ldapauth.conf.php');
-  require_once(drupal_get_path('module', 'ldapauth') .'/ldap_integration/LDAPInterface.php');
+  require_once(drupal_get_path('module', 'ldapauth') .'/includes/LDAPInterface.inc');
 }
 
 /**
@@ -364,10 +363,6 @@ function _ldapauth_auth($name, $pass) {
   if (empty($pass))
     return FALSE;
 
-  if (function_exists('ldapauth_transform_login_name')) {
-    $name = call_user_func('ldapauth_transform_login_name', $name);
-  }
-
   // Cycle through LDAP configurations.  First one to succeed wins.
   $result = db_query("SELECT sid FROM {ldapauth} WHERE status = '1' ORDER BY sid");
   while ($row = db_fetch_object($result)) {
@@ -376,34 +371,21 @@ function _ldapauth_auth($name, $pass) {
     if (!_ldapauth_init($row->sid))
       return FALSE;
 
-    // Get distinguished name.
-    $dn = _ldapauth_login2dn($name);
-    if (empty($dn))
+    // Look up the user in LDAP.
+    if (!($ldap = _ldapauth_user_lookup($name)) || !isset($ldap['dn']))
+      continue;
+
+    // Filter users based on their LDAP data.
+    if (($code = _ldapauth_ldap_info($row->sid, 'filter_php')) && !eval($code))
       continue;
 
     // Try to authenticate.
-    if (!$_ldapauth_ldap->connect($dn, $pass))
+    if (!$_ldapauth_ldap->connect($ldap['dn'], $pass))
       continue;
 
-    if (function_exists('ldapauth_user_filter') && !call_user_func('ldapauth_user_filter', $_ldapauth_ldap->retrieveAttributes($dn)))
-      continue;
-
-    return $dn;
+    return $ldap['dn'];
   }
   return FALSE;
-}
-
-/**
- * Finds the dn for the given login name.
- *
- * @param $name
- *   A login name.
- *
- * @return
- *   A user's dn or NULL if not found.
- */
-function _ldapauth_login2dn($name) {
-  return ($user = _ldapauth_user_lookup($name)) ? $user['dn'] : NULL;;
 }
 
 /**
@@ -421,6 +403,9 @@ function _ldapauth_user_lookup($name) {
   if (!$_ldapauth_ldap)
     return;
 
+  // Transform login name.
+  $login_name = ($code = _ldapauth_ldap_info($_ldapauth_ldap->getOption('sid'), 'login_php')) ? eval($code) : $name;
+
   // If there is no bindn and bindpw - the connect will be an anonymous connect.
   $_ldapauth_ldap->connect($_ldapauth_ldap->getOption('binddn'), $_ldapauth_ldap->getOption('bindpw'));
   foreach (explode("\r\n", $_ldapauth_ldap->getOption('basedn')) as $base_dn) {
@@ -428,7 +413,7 @@ function _ldapauth_user_lookup($name) {
       continue;
 
     $name_attr = $_ldapauth_ldap->getOption('user_attr') ? $_ldapauth_ldap->getOption('user_attr') : LDAPAUTH_DEFAULT_USER_ATTR;
-    $filter = "$name_attr=$name";
+    $filter = $name_attr .'='. $login_name;
     $result = $_ldapauth_ldap->search($base_dn, $filter);
     if (!$result)
       continue;
@@ -460,7 +445,7 @@ function _ldapauth_user_lookup($name) {
     // Clarence "sparr" Risher on http://drupal.org/node/102008, so we
     // loop through all possible options.
     foreach ($match[$name_attr] as $value) {
-      if (drupal_strtolower(trim($value)) == drupal_strtolower($name))
+      if (drupal_strtolower(trim($value)) == drupal_strtolower($login_name))
         return $match;
     }
   }
@@ -496,5 +481,29 @@ function _ldapauth_init($sid) {
     return $_ldapauth_ldap;
   }
   return FALSE;
+}
+
+/**
+ * Retrieve the saved ldapgroups saved setting.
+ *
+ * @param $sid
+ *   LDAP server ID.
+ * @param $req
+ *   An attribute name.
+ *
+ * @return
+ *   The attribute value.
+ */
+function _ldapauth_ldap_info($sid, $req) {
+  static $info = array();
+  if (!isset($info[$sid]))
+    $info[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
+
+  switch ($req) {
+    case 'login_php':
+      return $info[$sid]->login_php;
+    case 'filter_php':
+      return $info[$sid]->filter_php;
+  }
 }
 

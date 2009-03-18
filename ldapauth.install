@@ -1,88 +1,155 @@
 <?php
-//$Id$
+// $Id$
+
+/**
+ * @file
+ * ldapauth module installation and upgrade code.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+// Core API hooks
+
 /**
  * Implementation of hook_install().
  */
 function ldapauth_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("CREATE TABLE {ldapauth} (
-        sid int NOT NULL auto_increment,
-        name varchar(255) NOT NULL default '',
-        status int NOT NULL default '0',
-        server varchar(255) NOT NULL default '',
-        port int(10) NOT NULL default '389',
-        tls int NOT NULL default '0',
-        encrypted int NOT NULL default '0',
-        basedn text NOT NULL,
-        user_attr varchar(255) NOT NULL default '',
-        mail_attr VARCHAR(255) NOT NULL DEFAULT '',
-        binddn varchar(255) NOT NULL default '',
-        bindpw varchar(255) NOT NULL default '',
-        bindpw_clear varchar(255) NOT NULL default '',
-        PRIMARY KEY (name),
-        KEY sid (sid)
-      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
-      break;
-    case 'pgsql':
-      db_query("CREATE TABLE {ldapauth} (
-        sid SERIAL,
-        name VARCHAR(255) NOT NULL DEFAULT '',
-        status INTEGER NOT NULL DEFAULT 0,
-        server VARCHAR(255) NOT NULL DEFAULT '',
-        port INTEGER NOT NULL DEFAULT 389,
-        tls INTEGER NOT NULL DEFAULT 0,
-        encrypted INTEGER NOT NULL DEFAULT 0,
-        basedn text NOT NULL,
-        user_attr VARCHAR(255) NOT NULL DEFAULT '',
-        mail_attr VARCHAR(255) NOT NULL DEFAULT '',
-        binddn VARCHAR(255) NOT NULL DEFAULT '',
-        bindpw VARCHAR(255) NOT NULL DEFAULT '',
-        bindpw_clear VARCHAR(255) NOT NULL DEFAULT '',
-        PRIMARY KEY (name)
-      )"); 
-      db_query("CREATE INDEX {ldapauth}_sid_idx ON {ldapauth} (sid)");
-      break;
-  }
+  drupal_install_schema('ldapauth');
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function ldapauth_uninstall() {
-  db_query('DROP TABLE {ldapauth}');
-  variable_del('ldap_forget_passwords');
-  variable_del('ldap_login_process');
-  variable_del('ldap_disable_request_new_password');
-  variable_del('ldap_alter_reset_form');
-  variable_del('ldap_alter_email_field');
-  variable_del('ldap_user_pass_form');
-  variable_del('ldap_disable_user_request_password');
-  variable_del('ldap_forget_passwords');
-  variable_del('ldap_login_process');
+  // Remove tables.
+  drupal_uninstall_schema('ldapauth');
+
+  // Remove variables
+  variable_del('ldapauth_login_process');
+  variable_del('ldapauth_login_conflict');
+  variable_del('ldapauth_forget_passwords');
+  variable_del('ldapauth_sync_passwords');
+  variable_del('ldapauth_disable_pass_change');
+  variable_del('ldapauth_alter_email_field');
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Schema API hooks
 
 /**
- * Implementation of hook_update_N()
+ * Implementation of hook_schema().
  */
-
-function ldapauth_update_1() {
-  /* update removed to ldapdata.install */
+function ldapauth_schema() {
+  $schema['ldapauth'] = array(
+    'fields' => array(
+      'sid' => array(
+        'type' => 'serial',
+        'size' => 'tiny',
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'status' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'server' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'port' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 389,
+      ),
+      'tls' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'encrypted' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'basedn' => array(
+        'type' => 'text',
+      ),
+      'user_attr' => array(
+        'type' => 'varchar',
+        'length' => 255,
+      ),
+      'mail_attr' => array(
+        'type' => 'varchar',
+        'length' => 255,
+      ),
+      'binddn' => array(
+        'type' => 'varchar',
+        'length' => 255,
+      ),
+      'bindpw' => array(
+        'type' => 'varchar',
+        'length' => 255,
+      ),
+      'login_php',  array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'filter_php',  array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+    ),
+    'indexes' => array(
+      'sid' => array('sid'),
+    ),
+    'primary key' => array('name')
+  );
+  return $schema;
 }
 
-function ldapauth_update_2() {
+//////////////////////////////////////////////////////////////////////////////
+// Upgrades
+
+function ldapauth_update_6000() {
   $ret = array();
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD mail_attr VARCHAR(255) NOT NULL default '' AFTER user_attr ");
-      $ret[] = update_sql("ALTER TABLE {ldapauth} MODIFY basedn TEXT NOT NULL ");
-      break;
-    case 'pgsql':
-      $ret[] = update_sql("ALTER TABLE {ldapauth} ADD mail_attr VARCHAR(255) NOT NULL default '' AFTER user_attr ");
-      $ret[] = update_sql("ALTER TABLE {ldapauth} MODIFY basedn TEXT NOT NULL ");
-      break;
+  $result = db_query("SELECT * FROM {ldapauth}");
+  while ($row = db_fetch_object($result)) {
+    $servers[$row->name] = $row->sid;
+  }
+  if (!empty($servers)) {
+    $result = db_query("SELECT uid FROM {users} WHERE uid > '1'");
+    while ($row = db_fetch_object($result)) {
+      $account = user_load($row->uid);
+      if ($account->ldap_config && in_array($account->ldap_config, array_keys($servers))) {
+        user_save($account, array('ldap_config' => $servers[$account->ldap_config]));
+      }
+    }
   }
   return $ret;
 }
+
+function ldapauth_update_6001() {
+  $ret = array();
+  db_add_field($ret, 'ldapauth', 'login_php',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'filter_php',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  return $ret;
+}
+

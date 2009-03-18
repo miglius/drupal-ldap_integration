@@ -25,8 +25,7 @@ define('LDAPDATA_MAP_NOTHING',              2);
  * Implements hook_init()
  */
 function ldapdata_init() {
-  include_once(drupal_get_path('module', 'ldapdata') .'/ldap_integration/ldapdata.conf.php');
-  require_once(drupal_get_path('module', 'ldapdata') .'/ldap_integration/LDAPInterface.php');
+  require_once(drupal_get_path('module', 'ldapdata') .'/includes/LDAPInterface.inc');
 }
 
 /**
@@ -152,7 +151,7 @@ function ldapdata_category_access($account) {
 function _ldapdata_user_form(&$user, $category) {
   global $_ldapdata_ldap;
   $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
-  $attributes = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
+  $attributes = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
   if (!isset($user->ldap_dn) || $category != LDAPDATA_USER_DATA || $mapping_type != LDAPDATA_MAP_ATTRIBUTES || !$attributes)
     return;
@@ -170,11 +169,10 @@ function _ldapdata_user_form(&$user, $category) {
     '#type' => 'fieldset',
   );
 
-  $ldapdata_attributes = ldapdata_attributes();
-  foreach ($ldapdata_attributes as $attr_name => $attr_info) {
+  foreach (_ldapdata_ldap_info($user, 'ldapdata_attrs') as $attr_name => $attr_info) {
     if (in_array($attr_name, $attributes)) {
       array_shift($attr_info);
-      $value = $entry[strtolower($attr_name)][0];
+      $value = isset($entry[strtolower($attr_name)]) ? $entry[strtolower($attr_name)][0] : '';
       $form['ldap_attributes']['ldap_'. $attr_name] = _ldapdata_attribute_form($value, $attr_info);
     }
   }
@@ -285,7 +283,7 @@ function _ldapdata_user_submit(&$edit, &$user, $category) {
   //   4. User logged on and editing his profile.module fields ($category == *any*).
   $writeout = array();
 
-  $editables = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
+  $editables = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
   if ($category == LDAPDATA_USER_DATA && $editables) {
     // Case 1:
     $writeout = array_merge($writeout, _ldapdata_user_update_ldap_attributes($edit, $user));
@@ -329,15 +327,14 @@ function _ldapdata_user_view(&$user) {
   }
 
   $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
-  $ldapdata_attributes = ldapdata_attributes();
-  $allowed_attrs = (array) _ldapdata_ldap_info($user, 'ldapdata_roattrs');
+  $allowed_attrs = _ldapdata_ldap_info($user, 'ldapdata_roattrs');
   $items = array();
   $i = 0;
-  foreach ($ldapdata_attributes as $attr_name => $attr_info) {
+  foreach (_ldapdata_ldap_info($user, 'ldapdata_attrs') as $attr_name => $attr_info) {
     if (in_array($attr_name, $allowed_attrs)) {
       $item = array(
         '#type' => 'user_profile_item',
-        '#title' => $attr_info[2],
+        '#title' => t($attr_info[2]),
         '#value' => theme('ldapdata_ldap_attribute', $entry[strtolower($attr_name)][0], $attr_info[0]),
         '#weight' => $i++,
       );
@@ -412,7 +409,7 @@ function _ldapdata_user_profile_load(&$user) {
  */
 function _ldapdata_user_update_ldap_attributes(&$edit, &$user) {
   $writeout = array();
-  $editables = (array) _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
+  $editables = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
   foreach ($edit as $edit_attr => $value) {
     // Preventing a POST data injection: we check allowance to write value.
@@ -611,7 +608,7 @@ function _ldapdata_reverse_mappings($sid) {
  *   An user object.
  *
  * @return
- *   An array with the LDAP write username and password..
+ *   An array with the LDAP write username and password.
  */
 function _ldapdata_edition(&$user, $sid = NULL) {
   $row = db_fetch_object(db_query("SELECT ldapdata_binddn, ldapdata_bindpw FROM {ldapauth} WHERE sid = %d", isset($sid) ? $sid : $user->ldap_config));
@@ -623,6 +620,25 @@ function _ldapdata_edition(&$user, $sid = NULL) {
 }
 
 /**
+ * Filter LDAP attributes.
+ *
+ * @param $sid
+ *   A LDAP server ID.
+ * @param $attributes
+ *   An array of LDAP attributes.
+ *
+ * @return
+ *   A filtered array of LDAP attributes.
+ */
+function _ldapdata_attribute_filter($sid, $attributes) {
+  $object = (object) array('ldap_config' => $sid);
+  if ($code = _ldapdata_ldap_info($object, 'ldapdata_filter_php'))
+    $attributes = eval($code);
+
+  return $attributes;
+}
+
+/**
  * Initiates the LDAPInterfase class.
  *
  * @param $user
@@ -630,7 +646,7 @@ function _ldapdata_edition(&$user, $sid = NULL) {
  *
  * @return
  */
-function _ldapdata_init(&$user, $sid = NULL) {
+function _ldapdata_init($user, $sid = NULL) {
   global $_ldapdata_ldap;
 
   if (!isset($sid) && empty($user->ldap_config))
@@ -639,7 +655,7 @@ function _ldapdata_init(&$user, $sid = NULL) {
   if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", isset($sid) ? $sid : $user->ldap_config))) {
 
     // Other modules can invoke user load from hook_init() before ldapdata.
-    require_once(drupal_get_path('module', 'ldapdata') .'/ldap_integration/LDAPInterface.php');
+    require_once(drupal_get_path('module', 'ldapdata') .'/includes/LDAPInterface.inc');
 
     $_ldapdata_ldap = new LDAPInterface();
     $_ldapdata_ldap->setOption('sid', $row->sid);
@@ -650,8 +666,7 @@ function _ldapdata_init(&$user, $sid = NULL) {
     $_ldapdata_ldap->setOption('encrypted', $row->encrypted);
     $_ldapdata_ldap->setOption('basedn', $row->basedn);
     $_ldapdata_ldap->setOption('user_attr', $row->user_attr);
-    if (function_exists('ldapdata_attribute_filter'))
-      $_ldapdata_ldap->setOption('attr_filter', 'ldapdata_attribute_filter');
+    $_ldapdata_ldap->setOption('attr_filter', '_ldapdata_attribute_filter');
 
     return $_ldapdata_ldap;
   }
@@ -669,7 +684,7 @@ function _ldapdata_init(&$user, $sid = NULL) {
  * @return
  *   The attribute value.
  */
-function _ldapdata_ldap_info(&$user, $req) {
+function _ldapdata_ldap_info($user, $req) {
   $sid = isset($user->ldap_config) ? $user->ldap_config : NULL;
 
   if (!isset($sid))
@@ -693,6 +708,10 @@ function _ldapdata_ldap_info(&$user, $req) {
       return $info[$sid]->ldapdata_bindpw;
     case 'encrypted':
       return $info[$sid]->encrypted;
+    case 'ldapdata_attrs':
+      return !empty($info[$sid]->ldapdata_attrs) ? unserialize($info[$sid]->ldapdata_attrs) : array();
+    case 'ldapdata_filter_php':
+      return $info[$sid]->ldapdata_filter_php;
   }
 }
 

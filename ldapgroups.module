@@ -18,8 +18,7 @@ define('LDAPGROUPS_DEFAULT_ENTRIES_ATTRIBUTE', 'memberUid');
  * Implements hook_init().
  */
 function ldapgroups_init() {
-  //include_once(drupal_get_path('module', 'ldapgroups') .'/ldap_integration/ldapgroups.conf.php');
-  require_once(drupal_get_path('module', 'ldapgroups') .'/ldap_integration/LDAPInterface.php');
+  require_once(drupal_get_path('module', 'ldapgroups') .'/includes/LDAPInterface.inc');
 }
 
 /**
@@ -83,7 +82,7 @@ function ldapgroups_user_login(&$account) {
   // Setup the global $_ldapgroups_ldap object.
   if (!_ldapgroups_ldap_init($account))
     return;
-  
+
   // First, we figure out the appropriate groups.
   $groups = _ldapgroups_detect_groups($account);
 
@@ -105,27 +104,21 @@ function ldapgroups_user_login(&$account) {
     return TRUE;
 
   // Next, we apply site-specific rules.
-  $roles = _ldapgroups_filter($account, $groups);
+  $groups = _ldapgroups_filter($account, $groups);
 
   // At this point, the roles are in the full DN format.
   // Turn them in into friendly names.
 
   // Finally, we grant the roles.
   // Need to check for empty roles.
-  if (!empty($roles)) {
+  $roles = array();
+  if (!empty($groups)) {
     $ldapgroups_mappings = _ldapgroups_ldap_info($account, 'ldapgroups_mappings');
-    foreach ($roles as $role) {
-      if (isset($ldapgroups_mappings[$role])) {
-        $friendly_role = $ldapgroups_mappings[$role];
-      }
-      else if (preg_match('/^[^=]*=([^,]*),.*$/', $role, $matches)) {
-        $friendly_role = $matches[1];
-      }
-      else {
-        $friendly_role = $role;
-      }
-      _ldapgroups_create_role($friendly_role);
-      _ldapgroups_grant_role($account, $friendly_role);
+    foreach ($groups as $group) {
+      $role = _ldapgroups_mapping($account, $group);
+      _ldapgroups_create_role($role);
+      _ldapgroups_grant_role($account, $role);
+      $roles[] = $role;
     }
   }
 
@@ -277,36 +270,55 @@ function _ldapgroups_create_role($rolename) {
  *   An array of the filtered groups.
  */
 function _ldapgroups_filter($account, $groups) {
-  $roles = $groups;
-
   if (_ldapgroups_ldap_info($account, 'ldapgroups_mappings_filter') && count(_ldapgroups_ldap_info($account, 'ldapgroups_mappings') > 0)) {
-    $roles = array();
+    $groups_new = array();
     foreach ($groups as $group) {
       $group = preg_replace('/\s+/', '', $group);
-      foreach (_ldapgroups_ldap_info($account, 'ldapgroups_mappings') as $approved_group => $role) {
-        $approved_group = preg_replace('/\s+/', '', $approved_group);
-        if (strcasecmp($approved_group, $group) == 0)
-          $roles[] = $role;
+      foreach (_ldapgroups_ldap_info($account, 'ldapgroups_mappings') as $group_approved => $role) {
+        $group_approved = preg_replace('/\s+/', '', $group_approved);
+        if (strcasecmp($group_approved, $group) == 0)
+          $groups_new[] = $group;
       }
     }
-    $groups = $roles;
+    $groups = $groups_new;
   }
 
   if ($code = _ldapgroups_ldap_info($account, 'ldapgroups_filter_php'))
-    $roles = eval($code);
+    $groups = eval($code);
 
-  return $roles;
+  return $groups;
+}
+
+/**
+ * Maps LDAP group name to a Drupal role.
+ *
+ * @param $user
+ *   A user object.
+ * @param $group
+ *   A LDAP group name.
+ *
+ * @return
+ *   An Drupal role.
+ */
+function _ldapgroups_mapping($user, $group) {
+  $ldapgroups_mappings = _ldapgroups_ldap_info($user, 'ldapgroups_mappings');
+  if (isset($ldapgroups_mappings[$group]))
+    return $ldapgroups_mappings[$group];
+  else if (preg_match('/^[^=]*=([^,]*),.*$/', $group, $matches))
+    return $matches[1];
+  else
+    return $group;
 }
 
 /**
  * Initiates the LDAPInterfase class.
  *
- * @param $sid
- *   An ID of the LDAP server configuration.
+ * @param $user
+ *   A user object.
  *
  * @return
  */
-function _ldapgroups_ldap_init(&$user) {
+function _ldapgroups_ldap_init($user) {
   global $_ldapgroups_ldap;
 
   if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", $user->ldap_config))) {
@@ -334,7 +346,7 @@ function _ldapgroups_ldap_init(&$user) {
  * @return
  *   The attribute value.
  */
-function _ldapgroups_ldap_info(&$user, $req) {
+function _ldapgroups_ldap_info($user, $req) {
   $sid = isset($user->ldap_config) ? $user->ldap_config : NULL;
 
   if (!isset($sid))

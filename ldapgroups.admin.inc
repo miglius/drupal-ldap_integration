@@ -136,6 +136,20 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
       '#maxlength' => 255,
       '#description' => t('Name of the multivalued attribute which holds the CNs of group members, for example: !attr', array('!attr' => theme('placeholder', LDAPGROUPS_DEFAULT_ENTRIES_ATTRIBUTE))),
     );
+    $form['groups_limit'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('LDAP group to Drupal role limits'),
+      '#collapsible' => TRUE,
+      '#collapsed' => !$edit['ldapgroups_groups'],
+    );
+    $form['groups_limit']['ldapgroups_groups'] = array(
+      '#type' => 'textarea',
+      '#title' => t('LDAP groups which allow automatic account creation'),
+      '#default_value' => implode("\n", ($edit['ldapgroups_groups'] ? unserialize($edit['ldapgroups_groups']) : array())),
+      '#cols' => 50,
+      '#rows' => 5,
+      '#description' => t('Leave blank to automatically create accounts for all LDAP authenticated users. Otherwise, enter a one per line list of LDAP groups. If the user is not in any of those groups, the login will be denied.'),
+    );
     $form['group_filter'] = array(
       '#type' => 'fieldset',
       '#title' => t('LDAP group to Drupal role filtering'),
@@ -158,7 +172,7 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
       '#type' => 'checkbox',
       '#title' => t('Use LDAP group to Drupal roles filtering'),
       '#default_value' => $edit['ldapgroups_mappings_filter'],
-      '#description' => t('If enabled, only above mapped groups will be mapped to Drupal roles. If not enabled, a drupal role will be created for every group the user is associated with.')
+      '#description' => t('If enabled, only above mapped groups will be mapped to Drupal roles. If not enabled, a Drupal role will be created for every group the user is associated with.')
     );
     $form['group_filter']['ldapgroups_filter_php'] = array(
       '#type' => 'textarea',
@@ -166,21 +180,7 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
       '#default_value' => $edit['ldapgroups_filter_php'],
       '#cols' => 25,
       '#rows' => 5,
-      '#description' => t('Enter PHP to filter LDAP groups. Careful, bad PHP code here will break your site. If left empty, no filtering will be done. The code will be evaluated in the <code>_ldapgroups_filter()</code> function\'s context. It should return a filtered groups array. The code is evaluated before the above mapping is applied.'),
-    );
-    $form['groups_limit'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('LDAP group to Drupal role limits'),
-      '#collapsible' => TRUE,
-      '#collapsed' => !$edit['ldapgroups_groups'],
-    );
-    $form['groups_limit']['ldapgroups_groups'] = array(
-      '#type' => 'textarea',
-      '#title' => t('LDAP groups which allow automatic account creation'),
-      '#default_value' => implode("\n", ($edit['ldapgroups_groups'] ? unserialize($edit['ldapgroups_groups']) : array())),
-      '#cols' => 50,
-      '#rows' => 5,
-      '#description' => t('Leave blank to automatically create accounts for all LDAP authenticated users. Otherwise, enter a one per line list of LDAP groups. If the user is not in any of those groups, the login will be denied.'),
+      '#description' => t('Enter PHP to filter LDAP groups. Careful, bad PHP code here will break your site. If left empty, no filtering will be done. The groups array <code>$groups</code> is available in the code context. It should return a filtered <code>$groups</code> array as in example below. The code is evaluated before the above mapping is applied.<br /><code>$groups = array_filter($groups, create_function(\'$a\', \'return preg_match(\\\'/Staff/\\\', $a);\'));</code><br /><code>return $groups;</code>'),
     );
 
     $form['sid'] = array(

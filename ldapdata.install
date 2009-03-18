@@ -1,42 +1,88 @@
 <?php
 // $Id$
+
+/**
+ * @file
+ * ldapdata module installation and upgrade code.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+// Core API hooks
+
 /**
  * Implementation of hook_install().
  */
 function ldapdata_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("ALTER TABLE {ldapauth} ADD (
-        ldapdata_binddn VARCHAR(255) NOT NULL default '',
-        ldapdata_bindpw VARCHAR(255) NOT NULL default '',
-        ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
-        ldapdata_rwattrs LONGTEXT NOT NULL default '', 
-      	ldapdata_roattrs LONGTEXT NOT NULL default '', 
-        ldapdata_mappings LONGTEXT NOT NULL default ''
-      )");
-      break;
-    case 'pgsql':
-      db_query("ALTER TABLE {ldapauth} ADD (
-        ldapdata_binddn VARCHAR(255) NOT NULL default '',
-        ldapdata_bindpw VARCHAR(255) NOT NULL default '',
-        ldapdata_bindpw_clear VARCHAR(2) NOT NULL default '',
-        ldapdata_rwattrs TEXT NOT NULL, 
-        ldapdata_roattrs TEXT NOT NULL, 
-        ldapdata_mappings TEXT NOT NULL
-      )"); 
-      break;
-  }
+  // We're adding to an existing table, not creating a new one.
+  $ret = array();
+
+  db_add_field($ret, 'ldapauth', 'ldapdata_binddn', array(
+    'type' => 'varchar',
+    'length' => 255,
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_bindpw', array(
+    'type' => 'varchar',
+    'length' => 255,
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_rwattrs', array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_roattrs', array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_mappings', array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_attrs', array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_filter_php', array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+
+  return $ret;
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function ldapdata_uninstall() {
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_binddn");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_bindpw");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_bindpw_clear");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_rwattrs");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_roattrs");
-  db_query("ALTER TABLE {ldapauth} DROP COLUMN ldapdata_mappings");
+  // We're removing fileds from an existing table, not deleting a whole one.
+  $ret = array();
+
+  db_drop_field($ret, 'ldapauth', 'ldapdata_binddn');
+  db_drop_field($ret, 'ldapauth', 'ldapdata_bindpw');
+  db_drop_field($ret, 'ldapauth', 'ldapdata_rwattrs');
+  db_drop_field($ret, 'ldapauth', 'ldapdata_roattrs');
+  db_drop_field($ret, 'ldapauth', 'ldapdata_mappings');
+  db_drop_field($ret, 'ldapauth', 'ldapdata_attrs');
+  db_drop_field($ret, 'ldapauth', 'ldapdata_filter_php');
+
+  return $ret;
 }
+
+function ldapdata_update_6001() {
+  $ret = array();
+  db_add_field($ret, 'ldapauth', 'ldapdata_attrs',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'ldapdata_filter_php',  array(
+    'type' => 'text',
+    'not null' => FALSE,
+    'default' => '',
+  ));
+  return $ret;
+}
+
