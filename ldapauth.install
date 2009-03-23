@@ -98,17 +98,17 @@ function ldapauth_schema() {
         'type' => 'varchar',
         'length' => 255,
       ),
-      'login_php',  array(
+      'login_php' =>  array(
         'type' => 'text',
         'not null' => FALSE,
         'default' => '',
       ),
-      'filter_php',  array(
+      'filter_php' =>  array(
         'type' => 'text',
         'not null' => FALSE,
         'default' => '',
       ),
-      'weight',  array(
+      'weight' =>  array(
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
