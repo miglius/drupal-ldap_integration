@@ -172,7 +172,7 @@ function _ldapdata_user_form(&$user, $category) {
   foreach (_ldapdata_ldap_info($user, 'ldapdata_attrs') as $attr_name => $attr_info) {
     if (in_array($attr_name, $attributes)) {
       array_shift($attr_info);
-      $value = isset($entry[strtolower($attr_name)]) ? $entry[strtolower($attr_name)][0] : '';
+      $value = isset($entry[drupal_strtolower($attr_name)]) ? $entry[drupal_strtolower($attr_name)][0] : '';
       $form['ldap_attributes']['ldap_'. $attr_name] = _ldapdata_attribute_form($value, $attr_info);
     }
   }
@@ -212,7 +212,7 @@ function _ldapdata_user_load(&$user) {
     foreach ($ldap_drupal_mappings as $ldap_attr => $drupal_field) {
       if (isset($user->$drupal_field) && $ldap_attr && $drupal_field != 'access') {
         if ($drupal_field != 'pass' && $drupal_field != 'mail') {
-          $user->$drupal_field = $entry[strtolower($ldap_attr)][0];
+          $user->$drupal_field = $entry[drupal_strtolower($ldap_attr)][0];
         }
       }
     }
@@ -335,7 +335,7 @@ function _ldapdata_user_view(&$user) {
       $item = array(
         '#type' => 'user_profile_item',
         '#title' => t($attr_info[2]),
-        '#value' => theme('ldapdata_ldap_attribute', $entry[strtolower($attr_name)][0], $attr_info[0]),
+        '#value' => theme('ldapdata_ldap_attribute', $entry[drupal_strtolower($attr_name)][0], $attr_info[0]),
         '#weight' => $i++,
       );
       $items[$attr_name] = $item;
@@ -375,7 +375,7 @@ function _ldapdata_user_profile_load(&$user) {
   $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
   foreach ($profile_fields as $key => $field ) {
     if (in_array($key, $ldap_drupal_mappings)) {
-      $writeout[$field] = $entry[strtolower($ldap_drupal_reverse_mappings[$key])][0];
+      $writeout[$field] = $entry[drupal_strtolower($ldap_drupal_reverse_mappings[$key])][0];
     }
   }
 

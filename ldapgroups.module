@@ -171,19 +171,16 @@ function _ldapgroups_detect_groups($user) {
     $pairs = explode(',', $user->ldap_dn);
     foreach ($pairs as $p) {
       $pair = explode('=', $p);
-      if (trim($pair[0]) == _ldapgroups_ldap_info($user, 'ldapgroups_dn_attribute')) {
+      if (drupal_strtolower(trim($pair[0])) == drupal_strtolower(_ldapgroups_ldap_info($user, 'ldapgroups_dn_attribute')))
         $dn_groups[] = trim($pair[1]);
-      }
     }
   }
 
   // Strategy 2: groups in user attributes.
   $attrib_groups = array();
   if (_ldapgroups_ldap_info($user, 'ldapgroups_in_attr')) {
-    foreach (_ldapgroups_ldap_info($user, 'ldapgroups_attr') as $attribute) {
-      $tmp = $_ldapgroups_ldap->retrieveMultiAttribute($user->ldap_dn, $attribute);
-      $attrib_groups = array_merge($attrib_groups, $tmp);
-    }
+    foreach (_ldapgroups_ldap_info($user, 'ldapgroups_attr') as $attribute)
+      $attrib_groups[] = array_merge($attrib_groups, $_ldapgroups_ldap->retrieveMultiAttribute($user->ldap_dn, $attribute));
   }
 
   // Strategy 3: groups as entries.
@@ -191,13 +188,11 @@ function _ldapgroups_detect_groups($user) {
   if (_ldapgroups_ldap_info($user, 'ldapgroups_as_entries')) {
     foreach (_ldapgroups_ldap_info($user, 'ldapgroups_entries') as $branch) {
       $entries = $_ldapgroups_ldap->search($branch, "$group_attr=$user->ldap_dn", array(_ldapgroups_ldap_info($user, 'ldapgroups_entries_attribute')));
-      if ($entries['count'] == 0) {
+      if ($entries['count'] == 0)
         $entries = $_ldapgroups_ldap->search($branch,  "$group_attr=$user->name", array(_ldapgroups_ldap_info($user, 'ldapgroups_entries_attribute')));
-      }
       foreach ($entries as $entry) {
-        if (isset($entry['dn'])) {
+        if (isset($entry['dn']))
           $entries_groups[] = $entry['dn'];
-        }
       }
     }
   }
