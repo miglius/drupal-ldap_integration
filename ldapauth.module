@@ -51,78 +51,77 @@ function ldapauth_help($path, $arg) {
  * Implements hook_menu().
  */
 function ldapauth_menu() {
-  $items = array();
-
-  $items['admin/settings/ldap'] = array(
-    'title' => 'LDAP',
-    'description' => 'Configure LDAP integration settings.',
-    'page callback' => 'ldapauth_admin_menu_block_page',
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapauth.admin.inc',
+  return array(
+    'admin/settings/ldap' => array(
+      'title' => 'LDAP',
+      'description' => 'Configure LDAP integration settings.',
+      'page callback' => 'ldapauth_admin_menu_block_page',
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth' => array(
+      'title' => 'Authentication',
+      'description' => 'Configure LDAP authentication settings.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_settings'),
+      'access arguments' => array('administer ldap modules'),
+     'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth/configure' => array(
+      'title' => 'Settings',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+    ),
+    'admin/settings/ldap/ldapauth/list' => array(
+      'title' => 'List',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_list'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 1,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth/add' => array(
+      'title' => 'Add Server',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_form', 4),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 2,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth/edit' => array(
+      'title' => 'Configure LDAP Server',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_form', 4, 5),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth/delete' => array(
+      'title' => 'Delete LDAP Server',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_delete', 5),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth/activate' => array(
+      'title' => 'Activate LDAP Source',
+      'page callback' => 'ldapauth_admin_activate',
+      'page arguments' => array(5),
+      'access arguments' => array('administer ldap modules'),
+      'type' => MENU_CALLBACK,
+      'file' => 'ldapauth.admin.inc',
+    ),
+    'admin/settings/ldap/ldapauth/deactivate' => array(
+      'title' => 'De-Activate LDAP Source',
+      'page callback' => 'ldapauth_admin_deactivate',
+      'page arguments' => array(5),
+      'access arguments' => array('administer ldap modules'),
+      'type' => MENU_CALLBACK,
+      'file' => 'ldapauth.admin.inc',
+    ),
   );
-  $items['admin/settings/ldap/ldapauth'] = array(
-    'title' => 'Authentication',
-    'description' => 'Configure LDAP authentication settings.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapauth_admin_settings'),
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapauth.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapauth/configure'] = array(
-    'title' => 'Settings',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-  );
-  $items['admin/settings/ldap/ldapauth/list'] = array(
-    'title' => 'List',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapauth_admin_list'),
-    'type' => MENU_LOCAL_TASK,
-    'weight' => 1,
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapauth.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapauth/add'] = array(
-    'title' => 'Add Server',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapauth_admin_form', 4),
-    'type' => MENU_LOCAL_TASK,
-    'weight' => 2,
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapauth.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapauth/edit'] = array(
-    'title' => 'Configure LDAP Server',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapauth_admin_form', 4, 5),
-    'type' => MENU_CALLBACK,
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapauth.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapauth/delete'] = array(
-    'title' => 'Delete LDAP Server',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapauth_admin_delete', 5),
-    'type' => MENU_CALLBACK,
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapauth.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapauth/activate'] = array(
-    'title' => 'Activate LDAP Source',
-    'page callback' => 'ldapauth_admin_activate',
-    'page arguments' => array(5),
-    'access arguments' => array('administer ldap modules'),
-    'type' => MENU_CALLBACK,
-    'file' => 'ldapauth.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapauth/deactivate'] = array(
-    'title' => 'De-Activate LDAP Source',
-    'page callback' => 'ldapauth_admin_deactivate',
-    'page arguments' => array(5),
-    'access arguments' => array('administer ldap modules'),
-    'type' => MENU_CALLBACK,
-    'file' => 'ldapauth.admin.inc',
-  );
-  return $items;
 }
 
 /**

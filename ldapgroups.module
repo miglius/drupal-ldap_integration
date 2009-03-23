@@ -25,34 +25,33 @@ function ldapgroups_init() {
  * Implementation of hook_menu().
  */
 function ldapgroups_menu() {
-  $items = array();
-
-  $items['admin/settings/ldap/ldapgroups'] = array(
-    'title' => 'Groups',
-    'description' => 'Configure LDAP groups to Drupal roles mapping settings.',
-    'page callback' => 'ldapgroups_admin_list',
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapgroups.admin.inc',
+  return array(
+    'admin/settings/ldap/ldapgroups' => array(
+      'title' => 'Groups',
+      'description' => 'Configure LDAP groups to Drupal roles mapping settings.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapgroups_admin_settings'),
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapgroups.admin.inc',
+    ),
+    'admin/settings/ldap/ldapgroups/edit' => array(
+      'title' => 'Groups',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapgroups_admin_edit', 4, 5),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapgroups.admin.inc',
+    ),
+    'admin/settings/ldap/ldapgroups/reset' => array(
+      'title' => 'Groups',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapgroups_admin_edit', 4, 5),
+      'type' => MENU_CALLBACK,
+      'weight' => 1,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapgroups.admin.inc',
+    ),
   );
-  $items['admin/settings/ldap/ldapgroups/edit'] = array(
-    'title' => 'Groups',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapgroups_admin_edit', 4, 5),
-    'type' => MENU_CALLBACK,
-    'weight' => 1,
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapgroups.admin.inc',
-  );
-  $items['admin/settings/ldap/ldapgroups/reset'] = array(
-    'title' => 'Groups',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('ldapgroups_admin_edit', 4, 5),
-    'type' => MENU_CALLBACK,
-    'weight' => 1,
-    'access arguments' => array('administer ldap modules'),
-    'file' => 'ldapgroups.admin.inc',
-  );
-  return $items;
 }
 
 /**

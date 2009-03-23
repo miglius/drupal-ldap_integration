@@ -9,6 +9,18 @@
 //////////////////////////////////////////////////////////////////////////////
 // ldapgroups settings
 
+ /**
+ * Implements the settings page.
+ *
+ * @return
+ *   The form structure.
+ */
+function ldapgroups_admin_settings() {
+  $form['list']['#value'] = ldapgroups_admin_list();
+
+  return $form;
+}
+
 /**
  * Implements the LDAP servers list.
  *
@@ -30,7 +42,7 @@ function ldapgroups_admin_list() {
   }
 
   $header = array(
-    t('LDAP Config'),
+    t('Server'),
     array('data' => t('Operations'), 'colspan' => 2),
   );
 
@@ -69,7 +81,9 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
   elseif ($op == 'edit' && $sid) {
     $edit = db_fetch_array(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
 
-    drupal_set_title(t('Settings for LDAP group %group.', array('%group' => $edit['name'])));
+    $form['description'] = array(
+      '#value' => t('Configure LDAP groups to Drupal roles mapping settings for the %server server.', array('%server' => $edit['name'])),
+    );
 
     $form['group_dn'] = array(
       '#type' => 'fieldset',

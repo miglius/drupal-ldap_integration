@@ -9,6 +9,59 @@
 //////////////////////////////////////////////////////////////////////////////
 // ldapdata settings
 
+ /**
+ * Implements the settings page.
+ *
+ * @return
+ *   The form structure.
+ */
+function ldapdata_admin_settings() {
+  $form['cache'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Caching'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['cache']['ldapdata_cache'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Cache LDAP queries'),
+    '#default_value' => LDAPDATA_CACHE,
+    '#description' => t('Synchronize LDAP data with Drupal data only for the currently logged in user. Setting this option will save a lot of LDAP queries when drupal loads other users. If unchecked, the module will sync with the LDAP on each and every user object load.'),
+  );
+  $form['submit'] = array(
+   '#type'  => 'submit',
+    '#value' => t('Save configuration'),
+  );
+  $form['reset'] = array(
+    '#type'  => 'submit',
+    '#value' => t('Reset to defaults'),
+  );
+
+  $form['list']['#value'] = ldapdata_admin_list();
+
+  return $form;
+}
+
+/**
+ * Submit hook for the settings form.
+ */
+function ldapdata_admin_settings_submit($form, &$form_state) {
+  $op = $form_state['clicked_button']['#value'];
+  $values = $form_state['values'];
+  switch ($op) {
+    case t('Save configuration'):
+      variable_set('ldapdata_cache', $values['ldapdata_cache']);
+
+      drupal_set_message(t('The configuration options have been saved.'));
+      break;
+    case t('Reset to defaults'):
+      variable_del('ldapdata_cache');
+
+      drupal_set_message(t('The configuration options have been reset to their default values.'));
+      break;
+  }
+}
+
 /**
  * Implements the LDAP servers list.
  *
@@ -30,7 +83,7 @@ function ldapdata_admin_list() {
   }
 
   $header = array(
-    t('LDAP Config'),
+    t('Server'),
     array('data' => t('Operations'), 'colspan' => 2),
   );
 
@@ -73,6 +126,10 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     $ldapdata_rwattrs = $edit['ldapdata_rwattrs'] ? unserialize($edit['ldapdata_rwattrs']) : array();
     $ldapdata_attrs = $edit['ldapdata_attrs'] ? unserialize($edit['ldapdata_attrs']) : array();
 
+    $form['description'] = array(
+      '#value' => t('Configure LDAP data to Drupal profiles synchronization settings for the %server server.', array('%server' => $edit['name'])),
+    );
+
     // Attribute mapping.
     $form['mapping'] = array(
       '#type' => 'fieldset',
@@ -82,7 +139,7 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     );
     $form['mapping']['ldapdata_mapping'] = array(
       '#type' => 'radios',
-      '#title' => t('Should Drupal account fields be mapped to LDAP Attributes?'),
+      '#title' => t('Should Drupal account fields be mapped to LDAP attributes?'),
       '#default_value' => isset($ldapdata_mappings['access']) ? $ldapdata_mappings['access'] : LDAPDATA_MAP_ATTRIBUTES,
       '#options' => array(
         LDAPDATA_MAP_ATTRIBUTES => t('Changes in account fields will be mapped to LDAP attributes and back.'),
@@ -162,9 +219,9 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     $form['attributes']['header'] = array(
       '#type' => 'value',
       '#value' => array(
-        array('data' => t('Attribute Name')),
-        array('data' => t('Readable by User?')),
-        array('data' => t('Editable by User?')),
+        array('data' => t('Attribute name')),
+        array('data' => t('Readable by user?')),
+        array('data' => t('Editable by user?')),
       )
     );
     $form['attributes']['ldapdata_filter_php'] = array(
@@ -180,7 +237,7 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     $form['advanced'] = array(
       '#type' => 'fieldset',
       '#title' => t('Advanced configuration'),
-      '#description' => t('<p>When reading/editing attributes, this module logs on to the LDAP directory using the user\'s DN//pass pair. However, many LDAP setups do not allow their users to edit attributes.</p><p>If this is your case, but still you want users to edit their LDAP attributes via Drupal, you should set up an special user on your directory, with special access to edit your users\' attributes. Then this module will use it to log on and edit data.</p><p>"Test" tries authentication with the saved DN and password and prints the result.</p>'),
+      '#description' => t('<p>When reading/editing attributes, this module logs on to the LDAP directory using the user\'s DN/pass pair. However, many LDAP setups do not allow their users to edit attributes.</p><p>If this is your case, but still you want users to edit their LDAP attributes via Drupal, you should set up an special user on your directory, with special access to edit your users\' attributes. Then this module will use it to log on and edit data.</p><p>"Test" tries authentication with the saved DN and password and prints the result.</p>'),
       '#collapsible' => TRUE,
       '#collapsed' => TRUE
     );

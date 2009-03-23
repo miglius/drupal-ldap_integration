@@ -68,6 +68,9 @@ function ldapdata_uninstall() {
   db_drop_field($ret, 'ldapauth', 'ldapdata_attrs');
   db_drop_field($ret, 'ldapauth', 'ldapdata_filter_php');
 
+  // Remove variables
+  variable_del('ldapdata_cache');
+
   return $ret;
 }
 
