@@ -122,11 +122,11 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
     );
     $form['group_entry']['ldapgroups_entries'] = array(
       '#type' => 'textarea',
-      '#title' => t('Nodes containing groups (one per line)'),
+      '#title' => t('LDAP DNs containing groups (one per line)'),
       '#default_value' => implode("\n", ($edit['ldapgroups_entries'] ? unserialize($edit['ldapgroups_entries']) : array())),
       '#cols' => 50,
       '#rows' => 6,
-      '#description' => t('Enter here a list of nodes from where groups should be searched for. The module will look them up recursively from the given nodes.'),
+      '#description' => t('Enter here a list of LDAP nodes from where groups should be searched for. The module will look them up recursively from the given nodes.'),
     );
     $form['group_entry']['ldapgroups_entries_attribute'] = array(
       '#type' => 'textfield',
