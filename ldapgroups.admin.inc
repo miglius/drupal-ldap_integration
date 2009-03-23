@@ -271,7 +271,7 @@ function ldapgroups_admin_edit_submit($form, &$form_state) {
       if ($values['confirm'] == 1) {
 
         // Settings reset.
-        db_query("UPDATE {ldapauth} SET ldapgroups_in_dn = 0, ldapgroups_dn_attribute = '', ldapgroups_in_attr = 0, ldapgroups_attr = '', ldapgroups_as_entries = 0, ldapgroups_entries = '', ldapgroups_entries_attribute = ''i, ldapgroups_mappings = '', ldapgroups_mappings_filter = '0', ldapgroups_filter_php = '', ldapgroups_groups = '' WHERE sid = %d", $values['sid']);
+        db_query("UPDATE {ldapauth} SET ldapgroups_in_dn = 0, ldapgroups_dn_attribute = '', ldapgroups_in_attr = 0, ldapgroups_attr = '', ldapgroups_as_entries = 0, ldapgroups_entries = '', ldapgroups_entries_attribute = '', ldapgroups_mappings = '', ldapgroups_mappings_filter = '0', ldapgroups_filter_php = '', ldapgroups_groups = '' WHERE sid = %d", $values['sid']);
         drupal_set_message(t('The configuration options have been reset to their default values.'));
       }
       $form_state['redirect'] = 'admin/settings/ldap/ldapgroups';
