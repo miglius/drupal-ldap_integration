@@ -86,13 +86,13 @@ function ldapgroups_user_login(&$account) {
   // First, we figure out the appropriate groups.
   $groups = _ldapgroups_detect_groups($account);
 
-  // Then, we take every mapped role from the user, later below
   // Apply groups restrictions.
-  if (count(array_intersect($groups, _ldapgroups_ldap_info($account, 'ldapgroups_groups'))) == 0) {
+  if (count($groups_allow = _ldapgroups_ldap_info($account, 'ldapgroups_groups')) > 0 && count(array_intersect($groups, $groups_allow)) == 0) {
     $account = user_load(0);
     return;
   }
 
+  // Then, we take every mapped role from the user, later below
   // we'll grant back those deserved.
   $account->ldap_drupal_roles = isset($account->ldap_drupal_roles) ? $account->ldap_drupal_roles : array();
   foreach ($account->ldap_drupal_roles as $role) {
