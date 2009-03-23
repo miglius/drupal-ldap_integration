@@ -108,6 +108,11 @@ function ldapauth_schema() {
         'not null' => FALSE,
         'default' => '',
       ),
+      'weight',  array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
     ),
     'indexes' => array(
       'sid' => array('sid'),
@@ -149,6 +154,11 @@ function ldapauth_update_6001() {
     'type' => 'text',
     'not null' => FALSE,
     'default' => '',
+  ));
+  db_add_field($ret, 'ldapauth', 'weight',  array(
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 0,
   ));
   return $ret;
 }

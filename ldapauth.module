@@ -74,7 +74,8 @@ function ldapauth_menu() {
   );
   $items['admin/settings/ldap/ldapauth/list'] = array(
     'title' => 'List',
-    'page callback' => 'ldapauth_admin_list',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ldapauth_admin_list'),
     'type' => MENU_LOCAL_TASK,
     'weight' => 1,
     'access arguments' => array('administer ldap modules'),
@@ -122,6 +123,18 @@ function ldapauth_menu() {
     'file' => 'ldapauth.admin.inc',
   );
   return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function ldapauth_theme() {
+  return array(
+    'ldapauth_admin_list' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'ldapauth.theme.inc'
+    ),
+  );
 }
 
 /**
@@ -364,7 +377,7 @@ function _ldapauth_auth($name, $pass) {
     return FALSE;
 
   // Cycle through LDAP configurations.  First one to succeed wins.
-  $result = db_query("SELECT sid FROM {ldapauth} WHERE status = '1' ORDER BY sid");
+  $result = db_query("SELECT sid FROM {ldapauth} WHERE status = '1' ORDER BY weight");
   while ($row = db_fetch_object($result)) {
 
     // Initialize LDAP.

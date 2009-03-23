@@ -146,23 +146,44 @@ function ldapauth_admin_settings_submit($form, &$form_state) {
  *   The HTML table with the servers list.
  */
 function ldapauth_admin_list() {
-  $rows = array();
-  $result = db_query("SELECT sid, name, status FROM {ldapauth} ORDER BY name");
+  $form['list'] = array();
+  $result = db_query("SELECT sid, name, status, weight FROM {ldapauth} ORDER BY weight");
   while ($row = db_fetch_object($result)) {
-    $rows[] = array(
-      $row->name,
-      l(t('edit'), 'admin/settings/ldap/ldapauth/edit/'. $row->sid),
-      l($row->status ? t('de-activate') : t('activate'), 'admin/settings/ldap/ldapauth/'. ($row->status ? 'deactivate' : 'activate') .'/'. $row->sid),
-      l(t('delete'), 'admin/settings/ldap/ldapauth/delete/'. $row->sid)
+    $form['list'][$row->sid] = array(
+      'name' => array('#value' => $row->name),
+      'status' => array('#value' => $row->status),
+      'weight' => array(
+        '#type' => 'weight',
+        '#name' => 'sid_'. $row->sid .'_weight',
+        '#delta' => 10,
+        '#default_value' => $row->weight,
+      ),
     );
   }
 
-  $header = array(
-    t('LDAP Config'),
-    array('data' => t('Operations'), 'colspan' => 3),
+  $form['submit'] = array(
+    '#type'  => 'submit',
+    '#value' => t('Save'),
   );
 
-  return theme('table', $header, $rows);
+  return $form;
+}
+
+/**
+ * Submit hook for the servers list form.
+ */
+function ldapauth_admin_list_submit($form, &$form_state) {
+  $op = $form_state['clicked_button']['#value'];
+  switch ($op) {
+    case t('Save'):
+      foreach ($form_state['clicked_button']['#post'] as $name => $val) {
+        if (preg_match('/^sid_.*_weight/', $name)) {
+          $sid = preg_replace(array('/^sid_/', '/_weight$/'), array('', ''), $name);
+          db_query("UPDATE {ldapauth} SET weight = %d WHERE sid = %d", $val, $sid);
+        }
+      }
+      break;
+  }
 }
 
 /**
@@ -198,6 +219,8 @@ function ldapauth_admin_form(&$form_state, $op = NULL, $sid = NULL) {
       'mail_attr' => LDAPAUTH_DEFAULT_MAIL_ATTR,
       'binddn' => '',
       'bindpw' => FALSE,
+      'login_php' => '',
+      'filter_php' => '',
     );
   }
 

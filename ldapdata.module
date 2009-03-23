@@ -100,11 +100,11 @@ function ldapdata_menu() {
 function ldapdata_theme() {
   return array(
     'ldapdata_admin_edit' => array(
-      'arguments' => array('form'),
+      'arguments' => array('form' => NULL),
       'file' => 'ldapdata.theme.inc'
     ),
     'ldapdata_ldap_attribute' => array(
-      'arguments' => array('value', 'type'),
+      'arguments' => array('value' => NULL, 'type' => NULL),
       'file' => 'ldapdata.theme.inc'
     ),
   );

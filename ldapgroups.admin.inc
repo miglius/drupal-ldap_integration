@@ -17,12 +17,15 @@
  */
 function ldapgroups_admin_list() {
   $rows = array();
-  $result = db_query("SELECT sid, name FROM {ldapauth} WHERE status = '1' ORDER BY name");
+  $result = db_query("SELECT sid, name, status FROM {ldapauth} ORDER BY weight");
   while ($row = db_fetch_object($result)) {
     $rows[] = array(
-      $row->name,
-      l(t('edit'), 'admin/settings/ldap/ldapgroups/edit/'. $row->sid),
-      l(t('reset'), 'admin/settings/ldap/ldapgroups/reset/'. $row->sid),
+      'data' => array(
+        $row->name,
+        l(t('edit'), 'admin/settings/ldap/ldapgroups/edit/'. $row->sid),
+        l(t('reset'), 'admin/settings/ldap/ldapgroups/reset/'. $row->sid),
+      ),
+      'class' => $row->status ? 'menu-enabled' : 'menu-disabled',
     );
   }
 
