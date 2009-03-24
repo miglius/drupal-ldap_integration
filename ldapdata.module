@@ -125,13 +125,7 @@ function ldapdata_category_access($account) {
   if (!isset($account->ldap_authentified))
     return FALSE;
 
-  // We do this as opposed to calling _ldapdata_ldap_info() to save on the multiple sql queries.
-  $row = db_fetch_object(db_query("SELECT ldapdata_mappings, ldapdata_rwattrs FROM {ldapauth} WHERE sid = %d", $account->ldap_config));
-  $mappings = unserialize($row->ldapdata_mappings);
-  $mapping_type = $mappings['access'];
-  $rwattrs = $row->ldapdata_rwattrs;
-
-  return ($mapping_type == LDAPDATA_MAP_ATTRIBUTES && !empty($rwattrs)) ? TRUE : FALSE;
+  return (_ldapdata_ldap_info($account, 'mapping_type') == LDAPDATA_MAP_ATTRIBUTES && count(_ldapdata_ldap_info($account, 'ldapdata_rwattrs')) > 0) ? TRUE : FALSE;
 }
 
 /**
@@ -144,10 +138,9 @@ function _ldapdata_user_form(&$user, $category) {
   // Force LDAP sync.
   _ldapdata_user_load($user, FALSE);
 
-  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
   $attributes = _ldapdata_ldap_info($user, 'ldapdata_rwattrs');
 
-  if (!isset($user->ldap_dn) || $category != LDAPDATA_USER_DATA || $mapping_type != LDAPDATA_MAP_ATTRIBUTES || !$attributes)
+  if (!isset($user->ldap_dn) || $category != LDAPDATA_USER_DATA || _ldapdata_ldap_info($user, 'mapping_type') != LDAPDATA_MAP_ATTRIBUTES || !$attributes)
     return;
 
   $bind_info = _ldapdata_edition($user);
@@ -196,12 +189,10 @@ function _ldapdata_user_load(&$account, $cache = TRUE) {
     return;
   }
 
-  $mapping_type = _ldapdata_ldap_info($account, 'mapping_type');
-
   // See http://drupal.org/node/91786 about user_node().
   // User can be edited by the user or by other authorized users.
   $authmap = user_get_authmaps($account->name);
-  if (!isset($authmap['ldapauth']) || ($mapping_type == LDAPDATA_MAP_NOTHING)) {
+  if (!isset($authmap['ldapauth']) || (_ldapdata_ldap_info($account, 'mapping_type') == LDAPDATA_MAP_NOTHING)) {
     return;
   }
 
@@ -407,24 +398,17 @@ function _ldapdata_user_update_ldap_attributes(&$edit, &$user) {
  *   An associated array of attributes to write to LDAP.
  */
 function _ldapdata_user_update_drupal_account(&$edit, &$user) {
-  $sid = $user->ldap_config;
-
-  // We do this as opposed to calling _ldapdata_ldap_info() to save on the multiple sql queries.
-  $row = db_fetch_object(db_query("SELECT ldapdata_mappings, encrypted FROM {ldapauth} WHERE sid = %d", $sid));
-  $mappings = unserialize($row->ldapdata_mappings);
-  $mapping_type = $mappings['access'];
-  $encr = $row->encrypted;
-  $account_updated_in_ldap = ($mapping_type == LDAPDATA_MAP_ATTRIBUTES);
+  global $_ldapdata_ldap;
 
   $writeout = array();
-  if ($user->ldap_dn && $account_updated_in_ldap) {
+  if (isset($user->ldap_dn) && _ldapdata_ldap_info($user, 'mapping_type') == LDAPDATA_MAP_ATTRIBUTES) {
     // Case 2: updating account data.
     $d2l_map = _ldapdata_reverse_mappings($user->ldap_config);
     foreach ($edit as $key => $value) {
       if ($ldap_attr = isset($d2l_map[$key]) ? $d2l_map[$key] : NULL) {
         if ($key == 'pass') {
           if ($value) {
-            $pw = $encr ? '{md5}'. base64_encode(pack('H*', md5($value))) : $value;
+            $pw = $_ldapdata_ldap->getOption('encrypted') ? '{md5}'. base64_encode(pack('H*', md5($value))) : $value;
             $writeout[$ldap_attr] = $pw;
           }
         }
@@ -438,7 +422,7 @@ function _ldapdata_user_update_drupal_account(&$edit, &$user) {
 }
 
 /**
- * Find out which profile attributes should be synced back to LDAP..
+ * Find out which profile attributes should be synced back to LDAP.
  *
  * @param $edit
  *   A submitted form data.
@@ -449,8 +433,7 @@ function _ldapdata_user_update_drupal_account(&$edit, &$user) {
  *   An associated array of attributes to write to LDAP.
  */
 function _ldapdata_user_update_profile(&$edit, &$user) {
-  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
-  if ($mapping_type != LDAPDATA_MAP_ATTRIBUTES)
+  if (_ldapdata_ldap_info($user, 'mapping_type') != LDAPDATA_MAP_ATTRIBUTES)
     return array();
 
   $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($user->ldap_config);
@@ -560,14 +543,9 @@ function _ldapdata_retrieve_standard_user_fields() {
  */
 function _ldapdata_reverse_mappings($sid) {
   $map = array();
-  $row = db_fetch_object(db_query("SELECT ldapdata_mappings FROM {ldapauth} WHERE sid = %d", $sid));
-  $mappings = unserialize($row->ldapdata_mappings);
-
-  if (is_array($mappings)) {
-    foreach ($mappings as $key => $value) {
-      if (($drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key)) && $drupal_key != 'access')
-        $map[$drupal_key] = $value;
-    }
+  foreach (_ldapdata_ldap_info($sid, 'ldapdata_mappings') as $key => $value) {
+    if (($drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key)) && $drupal_key != 'access')
+      $map[$drupal_key] = $value;
   }
   return $map;
 }
@@ -667,8 +645,10 @@ function _ldapdata_ldap_info($sid, $req) {
 
   switch ($req) {
     case 'mapping_type':
-      $mappings = unserialize($info[$sid]->ldapdata_mappings);
-      return $mappings['access'];
+      $ldapdata_mappings = !empty($info[$sid]->ldapdata_mappings) ? unserialize($info[$sid]->ldapdata_mappings) : array();
+      return isset($ldapdata_mappings['access']) ? $ldapdata_mappings['access'] : LDAPDATA_MAP_NOTHING;
+    case 'ldapdata_mappings':
+      return !empty($info[$sid]->ldapdata_mappings) ? unserialize($info[$sid]->ldapdata_mappings) : array();
     case 'ldapdata_roattrs':
       return !empty($info[$sid]->ldapdata_roattrs) ? unserialize($info[$sid]->ldapdata_roattrs) : array();
     case 'ldapdata_rwattrs':
@@ -677,8 +657,6 @@ function _ldapdata_ldap_info($sid, $req) {
       return $info[$sid]->ldapdata_binddn;
     case 'ldapdata_bindpw':
       return $info[$sid]->ldapdata_bindpw;
-    case 'encrypted':
-      return $info[$sid]->encrypted;
     case 'ldapdata_attrs':
       return !empty($info[$sid]->ldapdata_attrs) ? unserialize($info[$sid]->ldapdata_attrs) : array();
     case 'ldapdata_filter_php':
