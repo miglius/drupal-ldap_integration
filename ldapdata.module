@@ -603,22 +603,24 @@ function _ldapdata_init($sid) {
   if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
-  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", $sid))) {
+  static $servers = array();
+  if (!isset($servers[$sid]))
+    $servers[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = 1 AND sid = %d", $sid));
 
+  if ($servers[$sid]) {
     // Other modules can invoke user load from hook_init() before ldapdata.
     require_once(drupal_get_path('module', 'ldapdata') .'/includes/LDAPInterface.inc');
 
     $_ldapdata_ldap = new LDAPInterface();
-    $_ldapdata_ldap->setOption('sid', $row->sid);
-    $_ldapdata_ldap->setOption('name', $row->name);
-    $_ldapdata_ldap->setOption('server', $row->server);
-    $_ldapdata_ldap->setOption('port', $row->port);
-    $_ldapdata_ldap->setOption('tls', $row->tls);
-    $_ldapdata_ldap->setOption('encrypted', $row->encrypted);
-    $_ldapdata_ldap->setOption('basedn', $row->basedn);
-    $_ldapdata_ldap->setOption('user_attr', $row->user_attr);
+    $_ldapdata_ldap->setOption('sid', $sid);
+    $_ldapdata_ldap->setOption('name', $servers[$sid]->name);
+    $_ldapdata_ldap->setOption('server', $servers[$sid]->server);
+    $_ldapdata_ldap->setOption('port', $servers[$sid]->port);
+    $_ldapdata_ldap->setOption('tls', $servers[$sid]->tls);
+    $_ldapdata_ldap->setOption('encrypted', $servers[$sid]->encrypted);
+    $_ldapdata_ldap->setOption('basedn', $servers[$sid]->basedn);
+    $_ldapdata_ldap->setOption('user_attr', $servers[$sid]->user_attr);
     $_ldapdata_ldap->setOption('attr_filter', '_ldapdata_attribute_filter');
-
     return $_ldapdata_ldap;
   }
   return FALSE;
@@ -639,28 +641,28 @@ function _ldapdata_ldap_info($sid, $req) {
   if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
-  static $info = array();
-  if (!isset($info[$sid]))
-    $info[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
+  static $servers = array();
+  if (!isset($servers[$sid]))
+    $servers[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
 
   switch ($req) {
     case 'mapping_type':
-      $ldapdata_mappings = !empty($info[$sid]->ldapdata_mappings) ? unserialize($info[$sid]->ldapdata_mappings) : array();
+      $ldapdata_mappings = !empty($servers[$sid]->ldapdata_mappings) ? unserialize($servers[$sid]->ldapdata_mappings) : array();
       return isset($ldapdata_mappings['access']) ? $ldapdata_mappings['access'] : LDAPDATA_MAP_NOTHING;
     case 'ldapdata_mappings':
-      return !empty($info[$sid]->ldapdata_mappings) ? unserialize($info[$sid]->ldapdata_mappings) : array();
+      return !empty($servers[$sid]->ldapdata_mappings) ? unserialize($servers[$sid]->ldapdata_mappings) : array();
     case 'ldapdata_roattrs':
-      return !empty($info[$sid]->ldapdata_roattrs) ? unserialize($info[$sid]->ldapdata_roattrs) : array();
+      return !empty($servers[$sid]->ldapdata_roattrs) ? unserialize($servers[$sid]->ldapdata_roattrs) : array();
     case 'ldapdata_rwattrs':
-      return !empty($info[$sid]->ldapdata_rwattrs) ? unserialize($info[$sid]->ldapdata_rwattrs) : array();
+      return !empty($servers[$sid]->ldapdata_rwattrs) ? unserialize($servers[$sid]->ldapdata_rwattrs) : array();
     case 'ldapdata_binddn':
-      return $info[$sid]->ldapdata_binddn;
+      return $servers[$sid]->ldapdata_binddn;
     case 'ldapdata_bindpw':
-      return $info[$sid]->ldapdata_bindpw;
+      return $servers[$sid]->ldapdata_bindpw;
     case 'ldapdata_attrs':
-      return !empty($info[$sid]->ldapdata_attrs) ? unserialize($info[$sid]->ldapdata_attrs) : array();
+      return !empty($servers[$sid]->ldapdata_attrs) ? unserialize($servers[$sid]->ldapdata_attrs) : array();
     case 'ldapdata_filter_php':
-      return $info[$sid]->ldapdata_filter_php;
+      return $servers[$sid]->ldapdata_filter_php;
   }
 }
 

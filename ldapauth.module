@@ -376,7 +376,7 @@ function _ldapauth_auth($name, $pass) {
     return FALSE;
 
   // Cycle through LDAP configurations.  First one to succeed wins.
-  $result = db_query("SELECT sid FROM {ldapauth} WHERE status = '1' ORDER BY weight");
+  $result = db_query("SELECT sid FROM {ldapauth} WHERE status = 1 ORDER BY weight");
   while ($row = db_fetch_object($result)) {
 
     // Initialize LDAP.
@@ -480,19 +480,23 @@ function _ldapauth_init($sid) {
   if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
-  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid))) {
+  static $servers = array();
+  if (!isset($servers[$sid]))
+    $servers[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = 1 AND sid = %d", $sid));
+
+  if ($servers[$sid]) {
     $_ldapauth_ldap = new LDAPInterface();
-    $_ldapauth_ldap->setOption('sid', $row->sid);
-    $_ldapauth_ldap->setOption('name', $row->name);
-    $_ldapauth_ldap->setOption('server', $row->server);
-    $_ldapauth_ldap->setOption('port', $row->port);
-    $_ldapauth_ldap->setOption('tls', $row->tls);
-    $_ldapauth_ldap->setOption('encrypted', $row->encrypted);
-    $_ldapauth_ldap->setOption('basedn', $row->basedn);
-    $_ldapauth_ldap->setOption('user_attr', $row->user_attr);
-    $_ldapauth_ldap->setOption('mail_attr', $row->mail_attr);
-    $_ldapauth_ldap->setOption('binddn', $row->binddn);
-    $_ldapauth_ldap->setOption('bindpw', $row->bindpw);
+    $_ldapauth_ldap->setOption('sid', $sid);
+    $_ldapauth_ldap->setOption('name', $servers[$sid]->name);
+    $_ldapauth_ldap->setOption('server', $servers[$sid]->server);
+    $_ldapauth_ldap->setOption('port', $servers[$sid]->port);
+    $_ldapauth_ldap->setOption('tls', $servers[$sid]->tls);
+    $_ldapauth_ldap->setOption('encrypted', $servers[$sid]->encrypted);
+    $_ldapauth_ldap->setOption('basedn', $servers[$sid]->basedn);
+    $_ldapauth_ldap->setOption('user_attr', $servers[$sid]->user_attr);
+    $_ldapauth_ldap->setOption('mail_attr', $servers[$sid]->mail_attr);
+    $_ldapauth_ldap->setOption('binddn', $servers[$sid]->binddn);
+    $_ldapauth_ldap->setOption('bindpw', $servers[$sid]->bindpw);
     return $_ldapauth_ldap;
   }
   return FALSE;
@@ -513,15 +517,15 @@ function _ldapauth_ldap_info($sid, $req) {
   if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
-  static $info = array();
-  if (!isset($info[$sid]))
-    $info[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
+  static $servers = array();
+  if (!isset($servers[$sid]))
+    $servers[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
 
   switch ($req) {
     case 'login_php':
-      return $info[$sid]->login_php;
+      return $servers[$sid]->login_php;
     case 'filter_php':
-      return $info[$sid]->filter_php;
+      return $servers[$sid]->filter_php;
   }
 }
 

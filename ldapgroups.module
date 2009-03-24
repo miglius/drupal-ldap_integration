@@ -318,16 +318,20 @@ function _ldapgroups_ldap_init($sid) {
   if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
-  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", $sid))) {
+  static $servers = array();
+  if (!isset($servers[$sid]))
+    $servers[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = 1 AND sid = %d", $sid));
+
+  if ($servers[$sid]) {
     $_ldapgroups_ldap = new LDAPInterface();
-    $_ldapgroups_ldap->setOption('sid', $row->sid);
-    $_ldapgroups_ldap->setOption('name', $row->name);
-    $_ldapgroups_ldap->setOption('server', $row->server);
-    $_ldapgroups_ldap->setOption('port', $row->port);
-    $_ldapgroups_ldap->setOption('tls', $row->tls);
-    $_ldapgroups_ldap->setOption('encrypted', $row->encrypted);
-    $_ldapgroups_ldap->setOption('basedn', $row->basedn);
-    $_ldapgroups_ldap->setOption('user_attr', $row->user_attr);
+    $_ldapgroups_ldap->setOption('sid', $sid);
+    $_ldapgroups_ldap->setOption('name', $servers[$sid]->name);
+    $_ldapgroups_ldap->setOption('server', $servers[$sid]->server);
+    $_ldapgroups_ldap->setOption('port', $servers[$sid]->port);
+    $_ldapgroups_ldap->setOption('tls', $servers[$sid]->tls);
+    $_ldapgroups_ldap->setOption('encrypted', $servers[$sid]->encrypted);
+    $_ldapgroups_ldap->setOption('basedn', $servers[$sid]->basedn);
+    $_ldapgroups_ldap->setOption('user_attr', $servers[$sid]->user_attr);
     return $_ldapgroups_ldap;
   }
 }
@@ -347,33 +351,33 @@ function _ldapgroups_ldap_info($sid, $req) {
   if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
-  static $info = array();
-  if (!isset($info[$sid]))
-    $info[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
+  static $servers = array();
+  if (!isset($servers[$sid]))
+    $servers[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
 
   switch ($req) {
     case 'ldapgroups_in_dn':
-      return $info[$sid]->ldapgroups_in_dn;
+      return $servers[$sid]->ldapgroups_in_dn;
     case 'ldapgroups_dn_attribute':
-      return !empty($info[$sid]->ldapgroups_dn_attribute) ? $info[$sid]->ldapgroups_dn_attribute : LDAPGROUPS_DEFAULT_DN_ATTRIBUTE;
+      return !empty($servers[$sid]->ldapgroups_dn_attribute) ? $servers[$sid]->ldapgroups_dn_attribute : LDAPGROUPS_DEFAULT_DN_ATTRIBUTE;
     case 'ldapgroups_in_attr':
-      return $info[$sid]->ldapgroups_in_attr;
+      return $servers[$sid]->ldapgroups_in_attr;
     case 'ldapgroups_attr':
-      return !empty($info[$sid]->ldapgroups_attr) ? unserialize($info[$sid]->ldapgroups_attr) : array();
+      return !empty($servers[$sid]->ldapgroups_attr) ? unserialize($servers[$sid]->ldapgroups_attr) : array();
     case 'ldapgroups_as_entries':
-      return $info[$sid]->ldapgroups_as_entries;
+      return $servers[$sid]->ldapgroups_as_entries;
     case 'ldapgroups_entries':
-      return !empty($info[$sid]->ldapgroups_entries) ? unserialize($info[$sid]->ldapgroups_entries) : array();
+      return !empty($servers[$sid]->ldapgroups_entries) ? unserialize($servers[$sid]->ldapgroups_entries) : array();
     case 'ldapgroups_entries_attribute':
-      return !empty($info[$sid]->ldapgroups_entries_attribute) ? $info[$sid]->ldapgroups_entries_attribute : LDAPGROUPS_DEFAULT_ENTRIES_ATTRIBUTE;
+      return !empty($servers[$sid]->ldapgroups_entries_attribute) ? $servers[$sid]->ldapgroups_entries_attribute : LDAPGROUPS_DEFAULT_ENTRIES_ATTRIBUTE;
     case 'ldapgroups_mappings':
-      return !empty($info[$sid]->ldapgroups_mappings) ? unserialize($info[$sid]->ldapgroups_mappings) : array();
+      return !empty($servers[$sid]->ldapgroups_mappings) ? unserialize($servers[$sid]->ldapgroups_mappings) : array();
     case 'ldapgroups_mappings_filter':
-      return $info[$sid]->ldapgroups_mappings_filter;
+      return $servers[$sid]->ldapgroups_mappings_filter;
     case 'ldapgroups_filter_php':
-      return $info[$sid]->ldapgroups_filter_php;
+      return $servers[$sid]->ldapgroups_filter_php;
     case 'ldapgroups_groups':
-      return !empty($info[$sid]->ldapgroups_groups) ? unserialize($info[$sid]->ldapgroups_groups) : array();
+      return !empty($servers[$sid]->ldapgroups_groups) ? unserialize($servers[$sid]->ldapgroups_groups) : array();
   }
 }
 
