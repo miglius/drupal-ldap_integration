@@ -361,10 +361,9 @@ function ldapdata_admin_edit_submit($form, &$form_state) {
       break;
     case t('Test'):
       global $_ldapdata_ldap;
-      $user = (object)array();
-      if (isset($values['sid']) && _ldapdata_init($user, $values['sid'])) {
+      if (isset($values['sid']) && _ldapdata_init($values['sid'])) {
         // Try to authenticate.
-        $bind_info = _ldapdata_edition($user, $values['sid']);
+        $bind_info = _ldapdata_edition($values['sid']);
         if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
           drupal_set_message(t('Authentication with the LDAP server for the dn %dn and saved password failed.', array('%dn' => $bind_info['dn'])), 'error');
         }

@@ -307,15 +307,18 @@ function _ldapgroups_mapping($user, $group) {
 /**
  * Initiates the LDAPInterfase class.
  *
- * @param $user
- *   A user object.
+ * @param $sid
+ *   A server ID or user object.
  *
  * @return
  */
-function _ldapgroups_ldap_init($user) {
+function _ldapgroups_ldap_init($sid) {
   global $_ldapgroups_ldap;
 
-  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", $user->ldap_config))) {
+  if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
+    return;
+
+  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE status = '1' AND sid = %d", $sid))) {
     $_ldapgroups_ldap = new LDAPInterface();
     $_ldapgroups_ldap->setOption('sid', $row->sid);
     $_ldapgroups_ldap->setOption('name', $row->name);
@@ -332,18 +335,16 @@ function _ldapgroups_ldap_init($user) {
 /**
  * Retrieve the saved ldapgroups saved setting.
  *
- * @param $user
- *   An user object.
+ * @param $sid
+ *   A server ID or user object.
  * @param $req
  *   An attribute name.
  *
  * @return
  *   The attribute value.
  */
-function _ldapgroups_ldap_info($user, $req) {
-  $sid = isset($user->ldap_config) ? $user->ldap_config : NULL;
-
-  if (!isset($sid))
+function _ldapgroups_ldap_info($sid, $req) {
+  if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
     return;
 
   static $info = array();

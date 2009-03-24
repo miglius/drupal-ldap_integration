@@ -470,12 +470,15 @@ function _ldapauth_user_lookup($name) {
  * Initiates the LDAPInterfase class.
  *
  * @param $sid
- *   An ID of the LDAP server configuration.
+ *   An ID of the LDAP server configuration or user object.
  *
  * @return
  */
 function _ldapauth_init($sid) {
   global $_ldapauth_ldap;
+
+  if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
+    return;
 
   if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid))) {
     $_ldapauth_ldap = new LDAPInterface();
@@ -499,7 +502,7 @@ function _ldapauth_init($sid) {
  * Retrieve the saved ldapgroups saved setting.
  *
  * @param $sid
- *   LDAP server ID.
+ *   A server ID or user object.
  * @param $req
  *   An attribute name.
  *
@@ -507,6 +510,9 @@ function _ldapauth_init($sid) {
  *   The attribute value.
  */
 function _ldapauth_ldap_info($sid, $req) {
+  if (!($sid = is_object($sid) ? (isset($sid->ldap_config) ? $sid->ldap_config : NULL) : $sid))
+    return;
+
   static $info = array();
   if (!isset($info[$sid]))
     $info[$sid] = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
