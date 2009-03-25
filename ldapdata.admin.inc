@@ -16,18 +16,20 @@
  *   The form structure.
  */
 function ldapdata_admin_settings() {
-  $form['cache'] = array(
+  $form['sync'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Caching'),
+    '#title' => t('Synchronizing options'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
-  $form['cache']['ldapdata_cache'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Cache LDAP queries'),
-    '#default_value' => LDAPDATA_CACHE,
-    '#description' => t('Synchronize LDAP data with Drupal data only for the currently logged in user. Setting this option will save a lot of LDAP queries when drupal loads other users. If unchecked, the module will sync with the LDAP on each and every user object load.'),
+  $form['sync']['ldapdata_sync'] = array(
+    '#type' => 'radios',
+    '#title' => t('Synchronize LDAP data with Drupal profiles'),
+    '#options' => array(t('On login'), t('For logged in user'), t('Always')),
+    '#default_value' => LDAPDATA_SYNC,
+    '#description' => t('When "On login" is selected, the synchronization will be performed only when the user logins to the Drupal. This option should be used when LDAP data is seldom changed by other applications. "For logged in user" will trigger the synchronization on each Drupal page load but only for the logged in user. "Always" will synchronize each user when the user object is loaded in Drupal. This option will always display the current LDAP data for all users, but might generate a lot of LDAP traffic. User edition will always synchronize the data despite the selection above.'),
   );
+
   $form['submit'] = array(
    '#type'  => 'submit',
     '#value' => t('Save configuration'),
@@ -50,12 +52,12 @@ function ldapdata_admin_settings_submit($form, &$form_state) {
   $values = $form_state['values'];
   switch ($op) {
     case t('Save configuration'):
-      variable_set('ldapdata_cache', $values['ldapdata_cache']);
+      variable_set('ldapdata_sync', $values['ldapdata_sync']);
 
       drupal_set_message(t('The configuration options have been saved.'));
       break;
     case t('Reset to defaults'):
-      variable_del('ldapdata_cache');
+      variable_del('ldapdata_sync');
 
       drupal_set_message(t('The configuration options have been reset to their default values.'));
       break;
