@@ -184,11 +184,12 @@ function _ldapgroups_detect_groups($user) {
 
   // Strategy 3: groups as entries.
   $entries_groups = array();
+  $ldapgroups_entries_attribute = _ldapgroups_ldap_info($user, 'ldapgroups_entries_attribute');
   if (_ldapgroups_ldap_info($user, 'ldapgroups_as_entries')) {
     foreach (_ldapgroups_ldap_info($user, 'ldapgroups_entries') as $branch) {
-      $entries = $_ldapgroups_ldap->search($branch, "$group_attr=$user->ldap_dn", array(_ldapgroups_ldap_info($user, 'ldapgroups_entries_attribute')));
-      if ($entries['count'] == 0)
-        $entries = $_ldapgroups_ldap->search($branch,  "$group_attr=$user->name", array(_ldapgroups_ldap_info($user, 'ldapgroups_entries_attribute')));
+      $entries = $_ldapgroups_ldap->search($branch, $ldapgroups_entries_attribute .'='. $user->ldap_dn, array($ldapgroups_entries_attribute));
+      if (empty($entries) || $entries['count'] == 0)
+        $entries = $_ldapgroups_ldap->search($branch, $ldapgroups_entries_attribute .'='. $user->name, array($ldapgroups_entries_attribute));
       foreach ($entries as $entry) {
         if (isset($entry['dn']))
           $entries_groups[] = $entry['dn'];
