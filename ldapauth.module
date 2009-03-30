@@ -347,12 +347,12 @@ function ldapauth_authenticate($form_values = array()) {
       $data['pass'] = $pass;
     $user = user_save($account, $data);
   }
-  user_authenticate_finalize($form_values);
 
   // Save user's authentication data to the session.
   $_SESSION['ldap_login']['dn'] = $dn;
   $_SESSION['ldap_login']['pass'] = $pass;
 
+  user_authenticate_finalize($form_values);
   return $user;
 }
 

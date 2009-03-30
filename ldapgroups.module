@@ -106,10 +106,6 @@ function ldapgroups_user_login(&$account) {
   $groups = _ldapgroups_filter($account, $groups);
 
   // At this point, the roles are in the full DN format.
-  // Turn them in into friendly names.
-
-  // Finally, we grant the roles.
-  // Need to check for empty roles.
   $roles = array();
   if (!empty($groups)) {
     $ldapgroups_mappings = _ldapgroups_ldap_info($account, 'ldapgroups_mappings');
@@ -299,7 +295,7 @@ function _ldapgroups_mapping($user, $group) {
   $ldapgroups_mappings = _ldapgroups_ldap_info($user, 'ldapgroups_mappings');
   if (isset($ldapgroups_mappings[$group]))
     return $ldapgroups_mappings[$group];
-  else if (preg_match('/^[^=]*=([^,]*),.*$/', $group, $matches))
+  else if (preg_match('/^[^=]+=([^,]+),.*$/', $group, $matches))
     return $matches[1];
   else
     return $group;
