@@ -25,9 +25,9 @@ function ldapdata_admin_settings() {
   $form['sync']['ldapdata_sync'] = array(
     '#type' => 'radios',
     '#title' => t('Synchronize LDAP data with Drupal profiles'),
-    '#options' => array(t('On login'), t('For logged in user'), t('Always')),
+    '#options' => array(t('When user logs in. (Use when LDAP rarely changes.)'), t('On each page load.'), t('Every time user object loaded in Drupal. (May cause high LDAP traffic.)')),
     '#default_value' => LDAPDATA_SYNC,
-    '#description' => t('When "On login" is selected, the synchronization will be performed only when the user logins to the Drupal. This option should be used when LDAP data is seldom changed by other applications. "For logged in user" will trigger the synchronization on each Drupal page load but only for the logged in user. "Always" will synchronize each user when the user object is loaded in Drupal. This option will always display the current LDAP data for all users, but might generate a lot of LDAP traffic. User edition will always synchronize the data despite the selection above.'),
+    '#description' => t('User edition will always synchronize the data despite the selection above.'),
   );
 
   $form['submit'] = array(
@@ -129,7 +129,7 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     $ldapdata_attrs = $edit['ldapdata_attrs'] ? unserialize($edit['ldapdata_attrs']) : array();
 
     $form['description'] = array(
-      '#value' => t('Configure LDAP data to Drupal profiles synchronization settings for the %server server.', array('%server' => $edit['name'])),
+      '#value' => t('Configure profile synchronization settings for %server.', array('%server' => $edit['name'])),
     );
 
     // Attribute mapping.
@@ -141,19 +141,19 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     );
     $form['mapping']['ldapdata_mapping'] = array(
       '#type' => 'radios',
-      '#title' => t('Should Drupal account fields be mapped to LDAP attributes?'),
+      '#title' => t('Drupal user profile field mapping'),
       '#default_value' => isset($ldapdata_mappings['access']) ? $ldapdata_mappings['access'] : LDAPDATA_MAP_ATTRIBUTES,
       '#options' => array(
-        LDAPDATA_MAP_ATTRIBUTES => t('Changes in account fields will be mapped to LDAP attributes and back.'),
-        LDAPDATA_MAP_ATTRIBUTES_READ_ONLY => t('Same, but read-only mode.'),
-        LDAPDATA_MAP_NOTHING => t('No attribute mapping will be done at all (<strong><em>Clears any existing mappings</em></strong>).'),
+        LDAPDATA_MAP_NOTHING => t('No mapping. (Clears any mappings defined below.)'),
+        LDAPDATA_MAP_ATTRIBUTES_READ_ONLY => t('Read only: Drupal user profile fields have LDAP attributes.'),
+        LDAPDATA_MAP_ATTRIBUTES => t('Read/write: Drupal user profile fields have LDAP attributes. LDAP attributes updated upon Drupal profile change.'),
       ),
     );
     $profile_fields = _ldapdata_retrieve_profile_fields();
     $standard_fields = _ldapdata_retrieve_standard_user_fields();
     $drupal_fields = $profile_fields + $standard_fields;
     $form['mapping']['mapping_pre'] = array(
-      '#value' => t('<div class="form-item"><label>If you selected the first or the second option above, please specify here: </label><table><thead><tr><th> Drupal field</th><th>LDAP attribute</th></tr></thead><tbody>'),
+      '#value' => t('<div class="form-item"><label>Specify mappings below if you selected the second or third option. </label><table><thead><tr><th> Drupal field</th><th>LDAP attribute</th></tr></thead><tbody>'),
     );
     $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($sid);
     foreach ($drupal_fields as $key => $field) {
@@ -177,7 +177,7 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
       '#title' => t('Attribute visibility & access control'),
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
-      '#description' => t('<p>Users may be able to view their LDAP attributes\' values, as well as edit them. You can configure this feature here.</p>'),
+      '#description' => t('Allows users to view or edit their LDAP attributes.'),
       '#tree' => TRUE,
     );
     $attributes = '';

@@ -82,7 +82,7 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
     $edit = db_fetch_array(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
 
     $form['description'] = array(
-      '#value' => t('Configure LDAP groups to Drupal roles mapping settings for the %server server.', array('%server' => $edit['name'])),
+      '#value' => t('Configure LDAP groups to Drupal roles mapping settings for the %server.', array('%server' => $edit['name'])),
     );
 
     $form['group_dn'] = array(
