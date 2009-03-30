@@ -182,10 +182,8 @@ function _ldapdata_user_load(&$account, $sync = FALSE) {
   if (!$sync && (LDAPDATA_SYNC < 1 || LDAPDATA_SYNC < 2 && $user->uid != $account->uid))
     return;
 
-  static $account_fields = array();
-  if (isset($account_fields[$account->uid])) {
-    foreach ($account_fields[$account->uid] as $field => $value)
-      $account->$field = $value;
+  static $accounts_synced = array();
+  if (isset($accounts_synced[$account->uid])) {
     return;
   }
 
@@ -196,7 +194,7 @@ function _ldapdata_user_load(&$account, $sync = FALSE) {
     return;
   }
 
-  $account_fields[$account->uid] = array();
+  $accounts_synced[$account->uid] = TRUE;
   $bind_info = _ldapdata_edition($account);
   if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
     watchdog('ldapdata', "User load: user %name's data could not be read in the LDAP directory", array('%name' => $account->name), WATCHDOG_WARNING);
@@ -205,26 +203,34 @@ function _ldapdata_user_load(&$account, $sync = FALSE) {
 
   if ($entry = $_ldapdata_ldap->retrieveAttributes($account->ldap_dn)) {
     $ldap_drupal_reverse_mappings = _ldapdata_reverse_mappings($account->ldap_config);
-    $ldap_drupal_mappings = array_flip($ldap_drupal_reverse_mappings);
 
     // Retrieve profile fields list.
     $profile_fields = _ldapdata_retrieve_profile_fields();
 
-    foreach ($ldap_drupal_mappings as $ldap_attr => $drupal_field) {
+    $drupal_fields = array();
+    foreach (_ldapdata_reverse_mappings($account->ldap_config) as $drupal_field => $ldap_attr) {
       $value = $entry[strtolower($ldap_attr)][0];
 
       // Is it a profile field?
-      if ($profile_field = is_numeric($drupal_field) && isset($profile_fields[$drupal_field]) ? $profile_fields[$drupal_field] : NULL) {
-        if ($row = db_fetch_array(db_query("SELECT value FROM {profile_values} WHERE fid = '%d' AND uid = '%d'", $drupal_field, $account->uid)))
-          db_query("UPDATE {profile_values} SET value = '%s' WHERE fid = '%d' AND uid = '%d'", $value, $drupal_field, $account->uid);
-        else
-          db_query("INSERT INTO {profile_values} (value, fid, uid) VALUES ('%s', '%d', '%d')", $value, $drupal_field, $account->uid);
-        $account->$profile_field = $account_fields[$account->uid][$profile_field] = $value;
+      if (is_numeric($drupal_field)) {
+        if ($profile_field = isset($profile_fields[$drupal_field]) ? $profile_fields[$drupal_field] : NULL) {
+          if ($row = db_fetch_array(db_query("SELECT value FROM {profile_values} WHERE fid = '%d' AND uid = '%d'", $drupal_field, $account->uid))) {
+            if ($row['value'] != $value)
+              db_query("UPDATE {profile_values} SET value = '%s' WHERE fid = '%d' AND uid = '%d'", $value, $drupal_field, $account->uid);
+          }
+          else {
+            db_query("INSERT INTO {profile_values} (value, fid, uid) VALUES ('%s', '%d', '%d')", $value, $drupal_field, $account->uid);
+          }
+          $account->$drupal_field = $value;
+        }
       }
-      else if (isset($account->$drupal_field) && !in_array($drupal_field, array('pass', 'mail'))) {
-        $account->$drupal_field = $account_fields[$account->uid][$drupal_field] = $value;
+      // Then it might be a Drupal field.
+      else if (isset($account->$drupal_field) && !in_array($drupal_field, array('pass'))) {
+        $drupal_fields = array_merge($drupal_fields, array($drupal_field => $value));
       }
     }
+    if (!empty($drupal_fields))
+      $account = user_save($account, $drupal_fields);
   }
   $_ldapdata_ldap->disconnect();
 }
@@ -238,35 +244,6 @@ function _ldapdata_user_login(&$user) {
   // Force LDAP sync.
   if (LDAPDATA_SYNC == 0)
     _ldapdata_user_load($user, TRUE);
-
-  // E-mail address should be written to the DB as soon as possible.
-  // This is because it could not be written along with the rest
-  // of the user info when the user was first created in
-  // _ldapauth_ldap_login at the ldapauth module.
-
-  $mapping_type = _ldapdata_ldap_info($user, 'mapping_type');
-  $authmap = user_get_authmaps($user->name);
-  if (!isset($authmap['ldapauth']) || ($mapping_type == LDAPDATA_MAP_NOTHING)) {
-    return;
-  }
-
-  $d2l_mappings = _ldapdata_reverse_mappings($user->ldap_config);
-  if (isset($d2l_mappings['mail'])) {
-    $bind_info = _ldapdata_edition($user);
-    if (!$_ldapdata_ldap->connect($bind_info['dn'], $bind_info['pass'])) {
-      watchdog('ldapdata', "User login: user %name's data could not be read in the LDAP directory", array('%name' => $user->name), WATCHDOG_WARNING);
-      return;
-    }
-    $entry = $_ldapdata_ldap->retrieveAttributes($user->ldap_dn);
-    $_ldapdata_ldap->disconnect();
-
-    $mail_attr = drupal_strtolower($d2l_mappings['mail']);
-    $mail = $entry[$mail_attr][0];
-    if ($mail != $user->mail) {
-      user_save($user, array('mail' => $mail));
-      $user->mail = $mail;
-    }
-  }
 }
 
 /**
@@ -545,7 +522,7 @@ function _ldapdata_retrieve_standard_user_fields() {
 function _ldapdata_reverse_mappings($sid) {
   $map = array();
   foreach (_ldapdata_ldap_info($sid, 'ldapdata_mappings') as $key => $value) {
-    if (($drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key)) && $drupal_key != 'access')
+    if (($drupal_key = preg_replace('/^ldap_amap-(.*)$/', '$1', $key)) && !in_array($drupal_key, array('access', 'status')))
       $map[$drupal_key] = $value;
   }
   return $map;
