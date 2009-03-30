@@ -202,7 +202,7 @@ function ldapauth_form_alter(&$form, $form_state, $form_id) {
       break;
     case 'user_profile_form':
       $account = $form["_account"]["#value"];
-      if (isset($account->ldap_authentified)) {
+      if ($user->uid != 1 && isset($account->ldap_authentified)) {
         if (LDAPAUTH_DISABLE_PASS_CHANGE)
         unset($form['account']['pass']);
 
