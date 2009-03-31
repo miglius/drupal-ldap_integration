@@ -209,7 +209,7 @@ function _ldapdata_user_load(&$account, $sync = FALSE) {
 
     $drupal_fields = array();
     foreach (_ldapdata_reverse_mappings($account->ldap_config) as $drupal_field => $ldap_attr) {
-      $value = $entry[strtolower($ldap_attr)][0];
+      $value = isset($entry[strtolower($ldap_attr)]) ? $entry[strtolower($ldap_attr)][0] : '';
 
       // Is it a profile field?
       if (is_numeric($drupal_field)) {
