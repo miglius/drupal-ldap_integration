@@ -175,7 +175,7 @@ function _ldapgroups_detect_groups($user) {
   $attrib_groups = array();
   if (_ldapgroups_ldap_info($user, 'ldapgroups_in_attr')) {
     foreach (_ldapgroups_ldap_info($user, 'ldapgroups_attr') as $attribute)
-      $attrib_groups[] = array_merge($attrib_groups, $_ldapgroups_ldap->retrieveMultiAttribute($user->ldap_dn, $attribute));
+      $attrib_groups = array_merge($attrib_groups, $_ldapgroups_ldap->retrieveMultiAttribute($user->ldap_dn, $attribute));
   }
 
   // Strategy 3: groups as entries.
