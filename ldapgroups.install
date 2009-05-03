@@ -52,7 +52,6 @@ function ldapgroups_install() {
   db_add_field($ret, 'ldapauth', 'ldapgroups_mappings',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   db_add_field($ret, 'ldapauth', 'ldapgroups_mappings_filter', array(
     'type' => 'int',
@@ -63,12 +62,10 @@ function ldapgroups_install() {
   db_add_field($ret, 'ldapauth', 'ldapgroups_filter_php',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   db_add_field($ret, 'ldapauth', 'ldapgroups_groups',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
 
   return $ret;
@@ -101,7 +98,6 @@ function ldapgroups_update_6001() {
   db_add_field($ret, 'ldapauth', 'ldapgroups_mappings',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   db_add_field($ret, 'ldapauth', 'ldapgroups_mappings_filter', array(
     'type' => 'int',
@@ -112,12 +108,10 @@ function ldapgroups_update_6001() {
   db_add_field($ret, 'ldapauth', 'ldapgroups_filter_php',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   db_add_field($ret, 'ldapauth', 'ldapgroups_groups',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   return $ret;
 }

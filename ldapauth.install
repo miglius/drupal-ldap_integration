@@ -101,12 +101,10 @@ function ldapauth_schema() {
       'login_php' =>  array(
         'type' => 'text',
         'not null' => FALSE,
-        'default' => '',
       ),
       'filter_php' =>  array(
         'type' => 'text',
         'not null' => FALSE,
-        'default' => '',
       ),
       'weight' =>  array(
         'type' => 'int',
@@ -148,12 +146,10 @@ function ldapauth_update_6001() {
   db_add_field($ret, 'ldapauth', 'login_php',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   db_add_field($ret, 'ldapauth', 'filter_php',  array(
     'type' => 'text',
     'not null' => FALSE,
-    'default' => '',
   ));
   db_add_field($ret, 'ldapauth', 'weight',  array(
     'type' => 'int',
