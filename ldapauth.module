@@ -283,10 +283,11 @@ function ldapauth_authenticate($form_values = array()) {
       $data = unserialize($row['data']);
       if (!isset($data['ldap_authentified']) || $data['ldap_authentified'] == 0) {
         // A local user with same name exists - authenticate that user.
-        // Nullify global ldap resource for good measure.
-        unset($_ldapauth_ldap);
-        user_authenticate($form_values);
-        return;
+        if (user_authenticate($form_values)) {
+          // Nullify global ldap resource for good measure.
+          unset($_ldapauth_ldap);
+          return;
+        }
       }
     }
   }

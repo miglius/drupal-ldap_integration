@@ -183,7 +183,7 @@ function ldapgroups_admin_edit(&$form_state, $op, $sid) {
       '#default_value' => $mappings,
       '#cols' => 50,
       '#rows' => 5,
-      '#description' => t('Enter a list of LDAP groups and their Drupal role mappings, one per line with a | delimiter. Should be in the form [ldap group]|[drupal role] such as:<br/>cn=ED IT NAG Staff,DC=ad,DC=uiuc,DC=edu|admin<br/>cn=Ed Webs UIUC Webmasters,DC=ad,DC=uiuc,DC=edu|committee member.'),
+      '#description' => t('Enter a list of LDAP groups and their Drupal role mappings, one per line with a | delimiter. Should be in the form [ldap group]|[drupal role] such as:<br/>cn=ED IT NAG Staff,DC=ad,DC=uiuc,DC=edu|admin<br/>cn=Ed Webs UIUC Webmasters,DC=ad,DC=uiuc,DC=edu|committee member'),
     );
     $form['group_filter']['ldapgroups_mappings_filter'] = array(
       '#type' => 'checkbox',
