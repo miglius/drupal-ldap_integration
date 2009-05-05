@@ -264,9 +264,7 @@ function _ldapgroups_filter($account, $groups) {
   if (_ldapgroups_ldap_info($account, 'ldapgroups_mappings_filter') && count(_ldapgroups_ldap_info($account, 'ldapgroups_mappings') > 0)) {
     $groups_new = array();
     foreach ($groups as $group) {
-      $group = preg_replace('/\s+/', '', $group);
       foreach (_ldapgroups_ldap_info($account, 'ldapgroups_mappings') as $group_approved => $role) {
-        $group_approved = preg_replace('/\s+/', '', $group_approved);
         if (strcasecmp($group_approved, $group) == 0)
           $groups_new[] = $group;
       }
