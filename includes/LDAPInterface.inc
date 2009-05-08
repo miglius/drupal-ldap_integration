@@ -131,10 +131,9 @@ class LDAPInterface {
   function initConnection() {
     if (!$con = ldap_connect($this->server, $this->port)) {
       watchdog('user', 'LDAP Connect failure to '. $this->server .':'. $this->port);
-      return NULL;
+      return;
     }
 
-    $this->connection = $con;
     ldap_set_option($con, LDAP_OPT_PROTOCOL_VERSION, 3);
     ldap_set_option($con, LDAP_OPT_REFERRALS, 0);
     // TLS encryption contributed by sfrancis@drupal.org
@@ -142,18 +141,22 @@ class LDAPInterface {
       $vers = $this->getOption('version');
       if ($vers == -1) {
         watchdog('user', 'Could not get LDAP protocol version.');
+        return;
       }
-
       if ($vers != 3) {
         watchdog('user', 'Could not start TLS, only supported by LDAP v3.');
+        return;
       }
       else if (!function_exists('ldap_start_tls')) {
         watchdog('user', 'Could not start TLS. It does not seem to be supported by this PHP setup.');
+        return;
       }
       else if (!ldap_start_tls($con)) {
         watchdog('user', t("Could not start TLS. (Error %errno: %error).", array('%errno' => ldap_errno($con), '%error' => ldap_error($con))));
+        return;
       }
     }
+    $this->connection = $con;
   }
 
   function connectAndBind($dn = '', $pass = '') {

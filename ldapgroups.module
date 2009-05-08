@@ -194,7 +194,7 @@ function _ldapgroups_detect_groups($user) {
   }
 
   $_ldapgroups_ldap->disconnect();
-  return array_merge($dn_groups, $attrib_groups, $entries_groups);
+  return array_unique(array_merge($dn_groups, $attrib_groups, $entries_groups));
 }
 
 /**
