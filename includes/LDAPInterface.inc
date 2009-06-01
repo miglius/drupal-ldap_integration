@@ -138,7 +138,7 @@ class LDAPInterface {
     ldap_set_option($con, LDAP_OPT_REFERRALS, 0);
     // TLS encryption contributed by sfrancis@drupal.org
     if ($this->tls) {
-      $vers = $this->getOption('version');
+      ldap_get_option($con, LDAP_OPT_PROTOCOL_VERSION, $vers);
       if ($vers == -1) {
         watchdog('user', 'Could not get LDAP protocol version.');
         return;
