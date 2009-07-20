@@ -143,18 +143,26 @@ function ldapauth_update_6000() {
 
 function ldapauth_update_6001() {
   $ret = array();
-  db_add_field($ret, 'ldapauth', 'login_php',  array(
+  db_add_field($ret, 'ldapauth', 'login_php', array(
     'type' => 'text',
     'not null' => FALSE,
   ));
-  db_add_field($ret, 'ldapauth', 'filter_php',  array(
+  db_add_field($ret, 'ldapauth', 'filter_php', array(
     'type' => 'text',
     'not null' => FALSE,
   ));
-  db_add_field($ret, 'ldapauth', 'weight',  array(
+  db_add_field($ret, 'ldapauth', 'weight', array(
     'type' => 'int',
     'not null' => TRUE,
     'default' => 0,
+  ));
+  return $ret;
+}
+
+function ldapauth_update_6002() {
+  $ret = array();
+  db_change_field($ret, 'ldapauth', 'basedn', 'basedn', array(
+    'type' => 'text',
   ));
   return $ret;
 }

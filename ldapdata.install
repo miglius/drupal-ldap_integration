@@ -71,11 +71,28 @@ function ldapdata_uninstall() {
 
 function ldapdata_update_6001() {
   $ret = array();
-  db_add_field($ret, 'ldapauth', 'ldapdata_attrs',  array(
+  db_add_field($ret, 'ldapauth', 'ldapdata_attrs', array(
     'type' => 'text',
     'not null' => FALSE,
   ));
-  db_add_field($ret, 'ldapauth', 'ldapdata_filter_php',  array(
+  db_add_field($ret, 'ldapauth', 'ldapdata_filter_php', array(
+    'type' => 'text',
+    'not null' => FALSE,
+  ));
+  return $ret;
+}
+
+function ldapdata_update_6002() {
+  $ret = array();
+  db_change_field($ret, 'ldapauth', 'ldapdata_rwattrs', 'ldapdata_rwattrs', array(
+    'type' => 'text',
+    'not null' => FALSE,
+  ));
+  db_change_field($ret, 'ldapauth', 'ldapdata_roattrs', 'ldapdata_roattrs', array(
+    'type' => 'text',
+    'not null' => FALSE,
+  ));
+  db_change_field($ret, 'ldapauth', 'ldapdata_mappings', 'ldapdata_mappings', array(
     'type' => 'text',
     'not null' => FALSE,
   ));
