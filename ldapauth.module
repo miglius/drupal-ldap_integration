@@ -97,6 +97,14 @@ function ldapauth_menu() {
       'access arguments' => array('administer ldap modules'),
       'file' => 'ldapauth.admin.inc',
     ),
+    'admin/settings/ldap/ldapauth/edit/%/test' => array(
+      'title' => 'Test LDAP Server',
+      'page callback' => '_ldapauth_ajax_test',
+      'page arguments' => array(5),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapauth.admin.inc',
+    ),
     'admin/settings/ldap/ldapauth/delete' => array(
       'title' => 'Delete LDAP Server',
       'page callback' => 'drupal_get_form',

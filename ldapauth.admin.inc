@@ -200,6 +200,8 @@ function ldapauth_admin_list_submit($form, &$form_state) {
  *   The form structure.
  */
 function ldapauth_admin_form(&$form_state, $op = NULL, $sid = NULL) {
+  drupal_add_js(drupal_get_path('module', 'ldapauth') .'/ldapauth.admin.js');
+
   if ($op == "edit" && $sid) {
     $edit = db_fetch_array(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid));
     $form['sid'] = array(
@@ -319,18 +321,18 @@ function ldapauth_admin_form(&$form_state, $op = NULL, $sid = NULL) {
   $form['advanced'] = array(
     '#type' => 'fieldset',
     '#title' => t('Advanced configuration'),
-    '#description' => t('<p>The process of authentication starts by establishing an anonymous connection to the LDAP directory and looking up for the user on it. Once this user is found, LDAP authentication is performed on them.</p><p>However, some LDAP configurations (specially common in <strong>Active Directory</strong> setups) restrict anonymous searches.</p><p>If your LDAP setup does not allow anonymous searches, or these are restricted in such a way that login names for users cannot be retrieved as a result of them, then you have to specify here a DN//password pair that will be used for these searches.</p><p>For security reasons, this pair should belong to an LDAP account with stripped down permissions.</p><p>"Test" tries authentication with the saved DN and password and prints the result.</p>'),
+    '#description' => t('<p>The process of authentication starts by establishing an anonymous connection to the LDAP directory and looking up for the user on it. Once this user is found, LDAP authentication is performed on them.</p><p>However, some LDAP configurations (specially common in <strong>Active Directory</strong> setups) restrict anonymous searches.</p><p>If your LDAP setup does not allow anonymous searches, or these are restricted in such a way that login names for users cannot be retrieved as a result of them, then you have to specify here a DN//password pair that will be used for these searches.</p><p>For security reasons, this pair should belong to an LDAP account with stripped down permissions.</p>'),
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE
-  );
-  $form['advanced']['binddn'] =  array(
-    '#type' => 'textfield',
-    '#title' => t('DN for non-anonymous search'),
-    '#default_value' => $edit['binddn'],
-    '#size' => 50,
-    '#maxlength' => 255,
+    '#collapsed' => FALSE,
   );
   if (!$edit['bindpw']) {
+    $form['advanced']['binddn'] =  array(
+      '#type' => 'textfield',
+      '#title' => t('DN for non-anonymous search'),
+      '#default_value' => $edit['binddn'],
+      '#size' => 50,
+      '#maxlength' => 255,
+    );
     $form['advanced']['bindpw'] = array(
       '#type' => 'password',
       '#title' => t('Password for non-anonymous search'),
@@ -339,16 +341,22 @@ function ldapauth_admin_form(&$form_state, $op = NULL, $sid = NULL) {
     );
   }
   else {
+    $form['advanced']['binddn'] =  array(
+      '#type' => 'item',
+      '#title' => t('DN for non-anonymous search'),
+      '#value' => $edit['binddn'],
+    );
     // Give an option to clear the password.
     $form['advanced']['bindpw_clear'] = array(
       '#type' => 'checkbox',
-      '#title' => t('Clear current password'),
+      '#title' => t('Clear current password and change DN'),
       '#default_value' => FALSE,
     );
   }
   $form['advanced']['test'] = array(
     '#type'  => 'submit',
     '#value' => t('Test'),
+    '#suffix' => '<div id="test-spinner" style="display: none;">'. theme_image(drupal_get_path('module', 'ldapauth') .'/images/spinner.gif') .'</div><div id="test-message" class="messages" style="display: none;"></div>',
   );
 
   $form['submit'] = array(
@@ -390,7 +398,7 @@ function ldapauth_admin_form_submit($form, &$form_state) {
       }
       else {
         if (isset($values['bindpw_clear'])) {
-          db_query("UPDATE {ldapauth} SET name = '%s', server = '%s', port = %d, tls = %d, encrypted = %d, basedn = '%s', user_attr = '%s', mail_attr = '%s', binddn = '%s', login_php = '%s', filter_php = '%s' WHERE sid = %d", $values['name'], $values['server'], $values['port'], $values['tls'], $values['encrypted'], $values['basedn'], trim($values['user_attr']), trim($values['mail_attr']), $values['binddn'], trim($values['login_php']), trim($values['filter_php']), $values['sid']);
+          db_query("UPDATE {ldapauth} SET name = '%s', server = '%s', port = %d, tls = %d, encrypted = %d, basedn = '%s', user_attr = '%s', mail_attr = '%s', login_php = '%s', filter_php = '%s' WHERE sid = %d", $values['name'], $values['server'], $values['port'], $values['tls'], $values['encrypted'], $values['basedn'], trim($values['user_attr']), trim($values['mail_attr']), trim($values['login_php']), trim($values['filter_php']), $values['sid']);
           if ($values['bindpw_clear']) {
             db_query("UPDATE {ldapauth} SET bindpw = '' WHERE sid = %d", $values['sid']);
           }
@@ -513,5 +521,36 @@ function ldapauth_admin_delete_submit($form, &$form_state) {
  */
 function ldapauth_admin_menu_block_page() {
   return theme('admin_block_content', system_admin_menu_block(menu_get_item()));
+}
+
+/**
+ * Implements the AJAX server test.
+ *
+ * @param $sid
+ *   LDAP server ID.
+ *
+ * @return
+ *   The JSON data.
+ */
+function _ldapauth_ajax_test($sid) {
+  global $_ldapauth_ldap;
+
+  if (!is_numeric($sid)) {
+    return;
+  }
+
+  _ldapauth_init($sid);
+
+  if ($_POST['bindpw_clear'] == 'undefined') {
+    $binddn = $_POST['binddn'];
+    $bindpw = $_POST['bindpw'];
+  }
+  else {
+    $binddn = $_ldapauth_ldap->getOption('binddn');
+    $bindpw = $_ldapauth_ldap->getOption('bindpw');
+  }
+
+  drupal_json($_ldapauth_ldap->connect($binddn, $bindpw) ? array('status' => 1, 'message' => t('Authentication with the LDAP server succeeded.')) : array('status' => 0, 'message' => t('Authentication with the LDAP server failed.')));
+  exit;
 }
 

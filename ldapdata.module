@@ -66,6 +66,14 @@ function ldapdata_menu() {
       'access arguments' => array('administer ldap modules'),
       'file' => 'ldapdata.admin.inc',
     ),
+    'admin/settings/ldap/ldapdata/edit/%/test' => array(
+      'title' => 'Test LDAP Server',
+      'page callback' => '_ldapdata_ajax_test',
+      'page arguments' => array(5),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapdata.admin.inc',
+    ),
     'admin/settings/ldap/ldapdata/reset' => array(
       'title' => 'Data',
       'page callback' => 'drupal_get_form',

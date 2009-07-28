@@ -192,6 +192,9 @@ class LDAPInterface {
   function search($base_dn, $filter, $attributes = array()) {
     $ret = array();
 
+    // For the AD the '\,' should be replaced by the '\\,' in the search filter.
+    $filter = preg_replace('/\\\,/', '\\\\\,', $filter);
+
     set_error_handler(array('LDAPInterface', 'void_error_handler'));
     $x = @ldap_search($this->connection, $base_dn, $filter, $attributes);
     restore_error_handler();

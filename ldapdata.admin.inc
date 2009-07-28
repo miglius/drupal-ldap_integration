@@ -106,6 +106,8 @@ function ldapdata_admin_list() {
  *   The form structure.
  */
 function ldapdata_admin_edit(&$form_state, $op, $sid) {
+  drupal_add_js(drupal_get_path('module', 'ldapdata') .'/ldapdata.admin.js');
+
   if ($op == "reset" && $sid) {
     $form['sid'] = array(
       '#type' => 'value',
@@ -239,18 +241,18 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
     $form['advanced'] = array(
       '#type' => 'fieldset',
       '#title' => t('Advanced configuration'),
-      '#description' => t('<p>When reading/editing attributes, this module logs on to the LDAP directory using the user\'s DN/pass pair. However, many LDAP setups do not allow their users to edit attributes.</p><p>If this is your case, but still you want users to edit their LDAP attributes via Drupal, you should set up an special user on your directory, with special access to edit your users\' attributes. Then this module will use it to log on and edit data.</p><p>"Test" tries authentication with the saved DN and password and prints the result.</p>'),
+      '#description' => t('<p>When reading/editing attributes, this module logs on to the LDAP directory using the user\'s DN/pass pair. However, many LDAP setups do not allow their users to edit attributes.</p><p>If this is your case, but still you want users to edit their LDAP attributes via Drupal, you should set up an special user on your directory, with special access to edit your users\' attributes. Then this module will use it to log on and edit data.</p>'),
       '#collapsible' => TRUE,
-      '#collapsed' => TRUE
-    );
-    $form['advanced']['ldapdata_binddn'] = array(
-      '#type' => 'textfield',
-      '#title' => t('DN for reading/editing attributes'),
-      '#default_value' => $edit['ldapdata_binddn'],
-      '#size' => 50,
-      '#maxlength' => 255,
+      '#collapsed' => FALSE,
     );
     if (!$edit['ldapdata_bindpw']) {
+      $form['advanced']['ldapdata_binddn'] = array(
+        '#type' => 'textfield',
+        '#title' => t('DN for reading/editing attributes'),
+        '#default_value' => $edit['ldapdata_binddn'],
+        '#size' => 50,
+        '#maxlength' => 255,
+      );
       $form['advanced']['ldapdata_bindpw'] = array(
         '#type' => 'password',
         '#title' => t('Password for reading/editing attributes'),
@@ -259,16 +261,22 @@ function ldapdata_admin_edit(&$form_state, $op, $sid) {
       );
     }
     else {
+      $form['advanced']['ldapdata_binddn'] =  array(
+        '#type' => 'item',
+        '#title' => t('DN for non-anonymous search'),
+        '#value' => $edit['ldapdata_binddn'],
+      );
       // Given an option to clear the password.
       $form['advanced']['ldapdata_bindpw_clear'] = array(
         '#type' => 'checkbox',
         '#default_value' => FALSE,
-        '#title' => t('Clear current password'),
+        '#title' => t('Clear current password and change DN'),
       );
     }
     $form['advanced']['test'] = array(
       '#type'  => 'submit',
       '#value' => t('Test'),
+      '#suffix' => '<div id="test-spinner" style="display: none;">'. theme_image(drupal_get_path('module', 'ldapdata') .'/images/spinner.gif') .'</div><div id="test-message" class="messages" style="display: none;"></div>',
     );
 
     $form['sid'] = array(
@@ -341,7 +349,7 @@ function ldapdata_admin_edit_submit($form, &$form_state) {
   switch ($op) {
     case t('Update'):
       if (isset($values['ldapdata_bindpw_clear'])) {
-        db_query("UPDATE {ldapauth} SET ldapdata_mappings = '%s', ldapdata_roattrs = '%s', ldapdata_rwattrs = '%s', ldapdata_binddn = '%s', ldapdata_attrs = '%s', ldapdata_filter_php = '%s' WHERE sid = %d", $form_state['ldapdata_mappings'], $form_state['ldapdata_roattrs'], $form_state['ldapdata_rwattrs'], $values['ldapdata_binddn'], $form_state['ldapdata_attrs'], $form_state['ldapdata_filter_php'], $values['sid']);
+        db_query("UPDATE {ldapauth} SET ldapdata_mappings = '%s', ldapdata_roattrs = '%s', ldapdata_rwattrs = '%s', ldapdata_attrs = '%s', ldapdata_filter_php = '%s' WHERE sid = %d", $form_state['ldapdata_mappings'], $form_state['ldapdata_roattrs'], $form_state['ldapdata_rwattrs'], $form_state['ldapdata_attrs'], $form_state['ldapdata_filter_php'], $values['sid']);
         if ($values['ldapdata_bindpw_clear']) {
           db_query("UPDATE {ldapauth} SET ldapdata_bindpw = '' WHERE sid = %d", $values['sid']);
         }
@@ -378,5 +386,36 @@ function ldapdata_admin_edit_submit($form, &$form_state) {
       }
       break;
   }
+}
+
+/**
+ * Implements the AJAX server test.
+ *
+ * @param $sid
+ *   LDAP server ID.
+ *
+ * @return
+ *   The JSON data.
+ */
+function _ldapdata_ajax_test($sid) {
+  global $_ldapdata_ldap;
+
+  if (!is_numeric($sid)) {
+    return;
+  }
+
+  _ldapdata_init($sid);
+
+  if ($_POST['bindpw_clear'] == 'undefined') {
+    $binddn = $_POST['binddn'];
+    $bindpw = $_POST['bindpw'];
+  }
+  else {
+    $binddn = $_ldapdata_ldap->getOption('binddn');
+    $bindpw = $_ldapdata_ldap->getOption('bindpw');
+  }
+
+  drupal_json($_ldapdata_ldap->connect($binddn, $bindpw) ? array('status' => 1, 'message' => t('Authentication with the LDAP server succeeded.')) : array('status' => 0, 'message' => t('Authentication with the LDAP server failed.')));
+  exit;
 }
 
