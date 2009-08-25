@@ -207,7 +207,7 @@ function _ldapgroups_filter($account, $groups) {
     foreach ($groups as $group) {
       foreach (_ldapgroups_ldap_info($account, 'ldapgroups_mappings') as $group_approved => $role) {
         if (strcasecmp($group_approved, $group) == 0)
-          $groups_new[] = $group;
+          $groups_new[] = $role;
       }
     }
     $groups = $groups_new;
