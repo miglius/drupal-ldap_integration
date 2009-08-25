@@ -294,7 +294,9 @@ function _ldapdata_user_submit(&$edit, &$user, $category) {
       watchdog('ldapdata', "User update: user %name's data could not be updated in the LDAP directory", array('%name' => $user->name), WATCHDOG_NOTICE);
       return;
     }
-    $_ldapdata_ldap->writeAttributes($user->ldap_dn, $writeout);
+    if (!($_ldapdata_ldap->writeAttributes($user->ldap_dn, $writeout))) {
+      drupal_set_message(t('The data was not written to LDAP.'), 'error');
+    }
   }
   $_ldapdata_ldap->disconnect();
 }

@@ -257,7 +257,7 @@ class LDAPInterface {
       }
     }
 
-    ldap_modify($this->connection, $dn, $attributes);
+    return ldap_modify($this->connection, $dn, $attributes);
   }
 
   function create_entry($dn, $attributes) {
