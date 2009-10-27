@@ -130,6 +130,11 @@ function _ldapdata_user_categories() {
  * Checks if LDAP data category should be printed.
  */
 function ldapdata_category_access($account) {
+  global $user;
+
+  if (!($user->uid > 0 && $user->uid == $account->uid || user_access('administer users')))
+    return FALSE;
+
   if (!isset($account->ldap_authentified))
     return FALSE;
 

@@ -112,10 +112,8 @@ function ldapauth_schema() {
         'default' => 0,
       ),
     ),
-    'indexes' => array(
-      'sid' => array('sid'),
-    ),
-    'primary key' => array('name')
+    'primary key' => array('sid'),
+    'unique keys' => array('name' => array('name')),
   );
   return $schema;
 }
@@ -164,6 +162,15 @@ function ldapauth_update_6002() {
   db_change_field($ret, 'ldapauth', 'basedn', 'basedn', array(
     'type' => 'text',
   ));
+  return $ret;
+}
+
+function ldapauth_update_6003() {
+  $ret = array();
+  db_drop_primary_key($ret, 'ldapauth');
+  db_change_field($ret, 'ldapauth', 'sid', 'sid', array('type' => 'serial', 'size' => 'tiny', 'not null' => TRUE), array('primary key' => array('sid')));
+  db_drop_index($ret, 'ldapauth', 'sid');
+  db_add_unique_key($ret, 'ldapauth', 'name', array('name'));
   return $ret;
 }
 

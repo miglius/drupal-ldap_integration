@@ -435,12 +435,33 @@ function ldapauth_admin_form_submit($form, &$form_state) {
 /**
  * De-activates the LDAP server.
  *
+ * @param $form_State
+ *   A form_state array.
  * @param $sid
  *   A LDAP server ID.
  *
  * @return
+ *  Form array.
  */
-function ldapauth_admin_deactivate($sid) {
+function ldapauth_admin_deactivate(&$form_state, $sid) {
+  if (is_numeric($sid) && ($name = db_result(db_query("SELECT name from {ldapauth} WHERE sid = %d", $sid)))) {
+    $form['sid'] = array('#type' => 'hidden', '#value' => $sid);
+
+    return confirm_form($form, t('Are you sure you want to de-activate the server %name?', array('%name' => $name)), 'admin/settings/ldap/ldapauth/list', '', t('De-activate'), t('Cancel'));
+  }
+  else {
+    drupal_not_found();
+    exit;
+  }
+}
+
+/**
+ * De-activates the LDAP server.
+ *
+ * @return
+ */
+function ldapauth_admin_deactivate_submit($form, &$form_state) {
+  $sid = $form_state['values']['sid'];
   $result = db_query("SELECT name from {ldapauth} WHERE sid = %d", $sid);
   if ($row = db_fetch_object($result)) {
     db_query("UPDATE {ldapauth} SET status = '0' WHERE sid = %d", $sid);
@@ -453,12 +474,33 @@ function ldapauth_admin_deactivate($sid) {
 /**
  * Activates the LDAP server.
  *
+ * @param $form_State
+ *   A form_state array.
  * @param $sid
  *   A LDAP server ID.
  *
  * @return
+ *  Form array.
  */
-function ldapauth_admin_activate($sid) {
+function ldapauth_admin_activate(&$form_state, $sid) {
+  if (is_numeric($sid) && ($name = db_result(db_query("SELECT name from {ldapauth} WHERE sid = %d", $sid)))) {
+    $form['sid'] = array('#type' => 'hidden', '#value' => $sid);
+
+    return confirm_form($form, t('Are you sure you want to activate the server %name?', array('%name' => $name)), 'admin/settings/ldap/ldapauth/list', '', t('Activate'), t('Cancel'));
+  }
+  else {
+    drupal_not_found();
+    exit;
+  }
+}
+
+/**
+ * Activates the LDAP server.
+ *
+ * @return
+ */
+function ldapauth_admin_activate_submit($form, &$form_state) {
+  $sid = $form_state['values']['sid'];
   $result = db_query("SELECT name from {ldapauth} WHERE sid = %d", $sid);
   if ($row = db_fetch_object($result)) {
     db_query("UPDATE {ldapauth} SET status = '1' WHERE sid = %d", $sid);
@@ -480,25 +522,18 @@ function ldapauth_admin_activate($sid) {
  *   The form structure.
  */
 function ldapauth_admin_delete(&$form_state, $sid) {
-  if ($row = db_fetch_object(db_query("SELECT name FROM {ldapauth} WHERE sid = %d", $sid))) {
-    $form['sid'] = array(
-      '#type' => 'hidden',
-      '#value' => $sid,
+  if (is_numeric($sid) && ($name = db_result(db_query("SELECT name from {ldapauth} WHERE sid = %d", $sid)))) {
+    $form = array(
+      'sid' => array('#type' => 'hidden', '#value' => $sid),
+      'name' => array('#type' => 'hidden', '#value' => $name),
     );
-    $form['name'] = array(
-      '#type' => 'hidden',
-      '#value' => $row->name,
-    );
-    return confirm_form(
-      $form,
-      t('Are you sure you want to delete the LDAP server named <em><strong>%name</strong></em>?', array('%name' => $row->name)),
-      'admin/settings/ldap/ldapauth/list',
-      t('<p>This action cannot be undone.</p>'),
-      t('Delete'),
-      t('Cancel')
-    );
+
+    return confirm_form($form, t('Are you sure you want to delete the LDAP server named %name?', array('%name' => $name)), 'admin/settings/ldap/ldapauth/list', NULL, t('Delete'), t('Cancel'));
   }
-  drupal_goto('admin/settings/ldap/ldapauth/list');
+  else {
+    drupal_not_found();
+    exit;
+  }
 }
 
 /**
@@ -511,6 +546,7 @@ function ldapauth_admin_delete_submit($form, &$form_state) {
     drupal_set_message(t('LDAP Configuration %name has been deleted.', array('%name' => $values['name'])));
     watchdog('ldapauth', 'LDAP Configuration %name has been deleted.', array('%name' => $values['name']));
   }
+  drupal_goto('admin/settings/ldap/ldapauth/list');
 }
 
 /**

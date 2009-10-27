@@ -130,7 +130,7 @@ class LDAPInterface {
 
   function initConnection() {
     if (!$con = ldap_connect($this->server, $this->port)) {
-      watchdog('user', 'LDAP Connect failure to '. $this->server .':'. $this->port);
+      watchdog('ldap', 'LDAP Connect failure to @server:@port', array('@server' => $this->server, '@port' => $this->port), WATCHDOG_ERROR);
       return;
     }
 
@@ -140,19 +140,19 @@ class LDAPInterface {
     if ($this->tls) {
       ldap_get_option($con, LDAP_OPT_PROTOCOL_VERSION, $vers);
       if ($vers == -1) {
-        watchdog('user', 'Could not get LDAP protocol version.');
+        watchdog('ldap', 'Could not get LDAP protocol version.', array(), WATCHDOG_ERROR);
         return;
       }
       if ($vers != 3) {
-        watchdog('user', 'Could not start TLS, only supported by LDAP v3.');
+        watchdog('ldap', 'Could not start TLS, only supported by LDAP v3.', array(), WATCHDOG_ERROR);
         return;
       }
       else if (!function_exists('ldap_start_tls')) {
-        watchdog('user', 'Could not start TLS. It does not seem to be supported by this PHP setup.');
+        watchdog('ldap', 'Could not start TLS. It does not seem to be supported by this PHP setup.', array(), WATCHDOG_ERROR);
         return;
       }
       else if (!ldap_start_tls($con)) {
-        watchdog('user', t("Could not start TLS. (Error %errno: %error).", array('%errno' => ldap_errno($con), '%error' => ldap_error($con))));
+        watchdog('ldap', 'Could not start TLS. (Error %errno: %error).', array('%errno' => ldap_errno($con), '%error' => ldap_error($con)), WATCHDOG_ERROR);
         return;
       }
     }
@@ -164,7 +164,7 @@ class LDAPInterface {
 
     $con = $this->connection;
     if (!$this->bind($dn, $pass)) {
-      watchdog('user', 'LDAP Bind failure for user %user. Error %errno: %error', array('%user' => $dn, '%errno' => ldap_errno($con), '%error' => ldap_error($con)));
+      watchdog('ldap', 'LDAP Bind failure for user %user. Error %errno: %error', array('%user' => $dn, '%errno' => ldap_errno($con), '%error' => ldap_error($con)));
       return NULL;
     }
 

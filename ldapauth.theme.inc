@@ -26,7 +26,7 @@ function theme_ldapauth_admin_list($form) {
   foreach ($form['list'] as $sid => $element) {
     if (is_numeric($sid)) {
       $row = array('');
-      $row[] = $element['name']['#value'];
+      $row[] = check_plain($element['name']['#value']);
       $row[] = l(t('edit'), 'admin/settings/ldap/ldapauth/edit/'. $sid);
       $row[] = l($element['status']['#value'] ? t('de-activate') : t('activate'), 'admin/settings/ldap/ldapauth/'. ($element['status']['#value'] ? 'deactivate' : 'activate') .'/'. $sid);
       $row[] = l(t('delete'), 'admin/settings/ldap/ldapauth/delete/'. $sid);

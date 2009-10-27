@@ -115,16 +115,16 @@ function ldapauth_menu() {
     ),
     'admin/settings/ldap/ldapauth/activate' => array(
       'title' => 'Activate LDAP Source',
-      'page callback' => 'ldapauth_admin_activate',
-      'page arguments' => array(5),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_activate'),
       'access arguments' => array('administer ldap modules'),
       'type' => MENU_CALLBACK,
       'file' => 'ldapauth.admin.inc',
     ),
     'admin/settings/ldap/ldapauth/deactivate' => array(
-      'title' => 'De-Activate LDAP Source',
-      'page callback' => 'ldapauth_admin_deactivate',
-      'page arguments' => array(5),
+      'title' => 'De-activate LDAP Source',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapauth_admin_deactivate'),
       'access arguments' => array('administer ldap modules'),
       'type' => MENU_CALLBACK,
       'file' => 'ldapauth.admin.inc',
@@ -201,7 +201,7 @@ function ldapauth_form_alter(&$form, $form_state, $form_id) {
 
   // Replace the drupal authenticate function is it's used as validation.
   if (isset($form['#validate']) && is_array($form['#validate']) && ($key = array_search('user_login_authenticate_validate', $form['#validate'])))
-    $form['#validate'][$key] = 'ldapauth_login_validate';
+    $form['#validate'][$key] = 'ldapauth_login_authenticate_validate';
 
   switch ($form_id) {
     case 'user_login_block':
@@ -260,7 +260,7 @@ function ldapauth_exit() {
  *
  * If successful, sets the global $user object.
  */
-function ldapauth_login_validate($form, &$form_state) {
+function ldapauth_login_authenticate_validate($form, &$form_state) {
   ldapauth_authenticate($form_state['values']);
 }
 
@@ -274,6 +274,11 @@ function ldapauth_authenticate($form_values = array()) {
 
   $name = $form_values['name'];
   $pass = trim($form_values['pass']);
+
+  // The user_login_name_validate() is not called if the user is being authenticated
+  // from the httpauth or services modules, therefore call it here.
+  $form_state['values'] = $form_values;
+  user_login_name_validate(NULL, $form_state);
 
   // (Design decision) uid=1 (admin user) must always authenticate to local database
   // this user is critical for all drupal admin and upgrade operations so it is best
@@ -300,35 +305,38 @@ function ldapauth_authenticate($form_values = array()) {
     }
   }
 
+  $account = user_load(array('name' => $name, 'status' => 1));
+  if ($account && drupal_is_denied('mail', $account->mail)) {
+    form_set_error('name', t('The name %name is registered using a reserved e-mail address and therefore could not be logged in.', array('%name' => $account->name)));
+  }
+
+  // If there is any validations errors, we do not query LDAP.
+  if (form_get_errors())
+    return;
+
   // Authenticate LDAP user.
   if (!($dn = _ldapauth_auth($name, $pass)))
     return;
 
-  $account = user_load(array('name' => $name));
-  if (!isset($account->uid)) {
-
-    // Check if the username is allowed.
-    if (drupal_is_denied('user', $name)) {
-      drupal_set_message(t('The name %name has been denied access.', array('%name' => $name)), 'error');
-      return;
-    }
-
+  if (!$account) {
     // Register this new user.
     if ($ldap_user = _ldapauth_user_lookup($name)) {
-      // Generate a random drupal password. LDAP password will be used anyways.
-      $pass_new = (LDAPAUTH_LOGIN_PROCESS == LDAPAUTH_AUTH_EXCLUSIVED || !LDAPAUTH_SYNC_PASSWORDS) ? user_password(20) : $pass;
-
       // If mail attribute is missing, set the name as mail.
       $init = $mail = key_exists(($_ldapauth_ldap->getOption('mail_attr') ? $_ldapauth_ldap->getOption('mail_attr') : LDAPAUTH_DEFAULT_MAIL_ATTR), $ldap_user) ? $ldap_user[$_ldapauth_ldap->getOption('mail_attr')][0] : $name;
+
+      // Check if the e-mail is not denied.
+      if (drupal_is_denied('mail', $mail)) {
+        form_set_error('name', t('The name %name is registered using a reserved e-mail address and therefore could not be logged in.', array('%name' => $name)));
+        return;
+      }
+
+      // Generate a random drupal password. LDAP password will be used anyways.
+      $pass_new = (LDAPAUTH_LOGIN_PROCESS == LDAPAUTH_AUTH_EXCLUSIVED || !LDAPAUTH_SYNC_PASSWORDS) ? user_password(20) : $pass;
 
       $userinfo = array('name' => $name, 'pass' => $pass_new, 'mail' => $mail, 'init' => $init, 'status' => 1, 'authname_ldapauth' => $name, 'ldap_authentified' => TRUE, 'ldap_dn' => $ldap_user['dn'], 'ldap_config' => $_ldapauth_ldap->getOption('sid'));
       $user = user_save('', $userinfo);
       watchdog('ldapauth', 'New external user %name created from the LDAP server %server.', array('%name' => $name, '%server' => $_ldapauth_ldap->getOption('name')), WATCHDOG_NOTICE, l(t('edit'), 'user/'. $user->uid .'/edit'));
     }
-  }
-  else if ($account->status == 0) {
-    // User is blocked.
-    return;
   }
   else {
     // Login existing user.
