@@ -35,7 +35,7 @@ function ldapauth_admin_settings() {
   $form['system-options']['ldapauth_login_process'] = array(
     '#type' => 'radios',
     '#title' => t('Choose authentication mode'),
-    '#description' => t('Pick the mode based on the types of user accounts and other configuration decisions. If <i>LDAP directory only</i> option is activated some UI modications will be applied.'),
+    '#description' => t('Pick the mode based on the types of user accounts and other configuration decisions. If <i>LDAP directory only</i> option is activated some UI modifications will be applied.'),
     '#default_value' => LDAPAUTH_LOGIN_PROCESS,
     '#options' => $options_login_process,
     '#required' => TRUE,
