@@ -50,12 +50,12 @@ function theme_ldapdata_admin_edit($form) {
 function theme_ldapdata_ldap_attribute($value, $type) {
   switch ($type) {
     case 'url':
-      $ret = strpos($value, '://') ? $value : "http://$value";
+      $ret = check_url(strpos($value, '://') ? $value : "http://$value");
       $ret = "<a href=\"$ret\">$ret</a>";
       break;
     case 'txt':
     default:
-      $ret = $value;
+      $ret = check_plain($value);
       break;
   }
 
