@@ -1,0 +1,26 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * ldapsync module installation and upgrade code.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+// Core API hooks
+
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function ldapsync_uninstall() {
+  $ret = array();
+
+  variable_del('ldapsync_time_interval');
+  variable_del('ldapsync_last_sync_time');
+  variable_del('ldapsync_filter');
+  variable_del('ldapsync_missing_users_action');
+
+  return $ret;
+}
+

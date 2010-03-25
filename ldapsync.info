@@ -1,0 +1,7 @@
+; $Id$
+name = Synchronization
+description = Implements LDAP users sync with Drupal
+package = LDAP integration
+dependencies[] = ldapauth
+core = 6.x
+

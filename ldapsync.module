@@ -1,0 +1,283 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * ldapsync keeps LDAP and Drupal user lists synchronized.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+
+define('LDAPSYNC_TIME_INTERVAL', variable_get('ldapsync_time_interval', -1));
+define('LDAPSYNC_FILTER',        variable_get('ldapsync_filter', ''));
+
+//////////////////////////////////////////////////////////////////////////////
+// Core API hooks
+
+/**
+ * Implements hook_init().
+ */
+function ldapsync_init() {
+  require_once(drupal_get_path('module', 'ldapauth') .'/includes/LDAPInterface.inc');
+}
+
+/**
+ * Implementation of hook_help().
+ */
+function ldapsync_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case "admin/help#ldapsync":
+      $output = '<p>'. t("Searches LDAP to update Drupal user membership and information.") .'</p>';
+      break;
+  }
+  return $output;
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function ldapsync_menu() {
+  return array(
+    'admin/settings/ldap/ldapsync' => array(
+      'title' => 'Synchronization',
+      'description' => 'Configure LDAP sync settings.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('ldapsync_admin_settings'),
+      'access arguments' => array('administer ldap modules'),
+      'file' => 'ldapsync.admin.inc',
+    ),
+  );
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Checks ldapsync_time_interval and ldapsync_last_sync_time variables to determine whether to run ldapsync.
+ */
+function ldapsync_cron() {
+  $time_interval = variable_get('ldapsync_time_interval', -1); // -1 means "only sync manually"
+  $last_sync_time = variable_get('ldapsync_last_sync_time', 0);
+  if (((time() - $last_sync_time) > $time_interval) && ($time_interval != -1)) {
+    _ldapsync_sync();
+  }
+}
+
+/**
+ * Main routine.
+ */
+function _ldapsync_sync() {
+  global $_ldapsync_ldap;
+  
+  // If ldapgroups is enabled, include it for groups-role sync.
+  if (module_exists('ldapgroups')) {
+    include_once(drupal_get_path('module', 'ldapauth') .'/ldapgroups.inc');
+  }
+
+  // Find all users in specified OU (using base DN and bind information from ldapauth).
+  $ldap_users = _ldapsync_search();
+
+  // Cycle through LDAP users and take appropriate action on the Drupal side.
+  $count_new_users=0;
+  $count_orphaned_users=0;
+  foreach ($ldap_users as $name => $data) {
+    // LDAP object must be a named account
+    if (!$name) continue;
+
+    // check whether user is in an OU mapped in module settings (need to create admin/settings/ldapsync page)
+    $dn = $data['dn'];
+
+    // Does user exist in Drupal (find by username)? If not, create it (using process in ldapauth).
+    $account = user_load(array('name' => $name));
+    if (!$account->uid) {
+
+      // User does not exist in Drupal. Let's create it.
+      $pass = user_password(20);  // Generate a random password (Drupal will auth against ldap anyway).
+      $mail = $data['mail'];
+      $init = $mail = key_exists(($_ldapsync_ldap->getOption('mail_attr') ? $_ldapsync_ldap->getOption('mail_attr') : LDAPAUTH_DEFAULT_MAIL_ATTR), $data) ? $data[$_ldapsync_ldap->getOption('mail_attr')] : $name;
+      $userinfo = array(
+        // new row to table "users":
+        'name' => $name,
+        'pass' => $pass,
+        'mail' => $mail,
+        'init' => $init,
+        'status' => 1,
+        'ldap_authentified' => TRUE,
+        'ldap_dn' => $dn,
+        'ldap_config' => $_ldapsync_ldap->getOption('sid'),
+        // new row to table "authmap": module='ldapauth', authname=$name
+        'authname_ldapauth' => $name,
+      );
+
+      // Save user.
+      $account = user_save('', $userinfo);
+      $count_new_users++;
+
+    }
+    else {
+      // User exists in Drupal -- check a few things, but most users will require no further action.
+
+      // Check authentication method.
+      $data = unserialize($account->data);
+      if (!$data['ldap_authentified']) {
+        // User exists as a local Drupal account -- name conflict! -- log and stop processing this user.
+        watchdog('ldapsync', 'Could not create ldap-authentified account for user %name because a local user by that name already exists.', array('%name' => $name));
+        continue;
+      }
+    }
+
+    // Update user's groups if ldapgroups is enabled.
+    if (function_exists('ldapgroups_user_login')) {
+      ldapgroups_user_login($account);
+    }
+    
+    // Enable any blocked user who is enabled in LDAP.
+    if (!$account->status) {
+      db_query("UPDATE {users} SET status = %d where uid = %", 1, $account->uid);
+      watchdog('ldapsync', 'Enabled LDAP-authentified user %name because the corresponding LDAP account is enabled.', array('%name' => $row['name']));
+    }
+  }
+
+  // Do we have any LDAP-authentified Drupal users who don't exist in LDAP?
+  if ($ldap_users) {
+    $result = db_query("SELECT uid, name, data FROM {users} WHERE status = %d", 1);
+    while ($row = db_fetch_array($result)) {
+      if (!in_array($row['name'], array_keys($ldap_users))) {
+        $data = unserialize($row['data']);
+        if ($data['ldap_authentified']) {
+          // Block user if appropriate module setting is set.
+          if (variable_get('ldapsync_missing_users_action', 'warn') == 'block') {
+            // Block user.
+            db_query("UPDATE {users} SET status=0 WHERE uid=%d", $row['uid']);
+            // Log out blocked user.
+            $account = user_load(array('uid' => $row['uid']));
+            $array = array();
+            user_module_invoke('logout', $array, $account);
+            // Log this.
+            watchdog('ldapsync', 'Disabled LDAP-authentified user %name because the corresponding LDAP account does not exist or is disabled.', array('%name' => $row['name']));
+          }
+          $count_orphaned_users++;
+        }
+      }
+    }
+  }
+
+  // Send watchdog message with process summary.
+  $summary = t('Completed LDAP sync. New users: %count_new. LDAP-authentified users that do not have an enabled LDAP account: %count_orphaned.', array('%count_new' => $count_new_users, '%count_orphaned' => $count_orphaned_users));
+  watchdog('ldapsync', $summary);
+
+  // Update last sync time variable, so that we don't sync again until the specified time period passes again.
+  variable_set('ldapsync_last_sync_time', time());
+
+  // Useful if calling manually from settings page.
+  return $summary;
+}
+
+/**
+ * Build array of all LDAP users from servers and OUs specified in ldapauth settings.
+ */
+function _ldapsync_search() {
+  global $_ldapsync_ldap;
+
+  // Cycle through LDAP configurations.
+  $result = db_query("SELECT sid FROM {ldapauth} WHERE status = %d ORDER BY sid", 1);
+  while ($row = db_fetch_object($result)) {
+    // Initialize LDAP.
+    if (!_ldapsync_init($row->sid)) {
+      watchdog('ldapsync', 'ldapsync init failed for ldap server %sid.', array('%sid' => $row->sid));
+      continue;
+    }
+
+    /*
+    // Data mapping.
+    $server_obj = db_fetch_object(db_query("SELECT ldapdata_mappings FROM {ldapauth} WHERE sid = %d", $row->sid));
+    $ldapdata_mappings = !empty($server_obj->ldapdata_mappings) ? unserialize($server_obj->ldapdata_mappings) : array();
+    if (!empty($ldapdata_mappings) && $ldapdata_mappings['access'] >= 4) {
+      unset($ldapdata_mappings['access'], $ldapdata_mappings['ldap_amap-mail'], $ldapdata_mappings['ldap_amap-pass']);
+      print "<pre>Drupal user fields to be synchronized from the LDAP attributes listed below:\n";
+      print_r($ldapdata_mappings);
+      print '</pre>';
+      # To be continued
+    }
+    */
+
+    // If there is no bindn and bindpw - the connect will be an anonymous connect.
+    $_ldapsync_ldap->connect($_ldapsync_ldap->getOption('binddn'), $_ldapsync_ldap->getOption('bindpw'));
+    $users=array();
+    foreach (explode("\r\n", $_ldapsync_ldap->getOption('basedn')) as $base_dn) {
+      if (empty($base_dn)) {
+        continue;
+      }
+
+      // Re-initialize database object each time.
+      $ldapresult = array();
+
+      // Execute LDAP search.
+      $name_attr = $_ldapsync_ldap->getOption('user_attr') ? $_ldapsync_ldap->getOption('user_attr') : LDAPAUTH_DEFAULT_USER_ATTR;
+      $ldapsync_filter = variable_get('ldapsync_filter', 0);
+      $filter = ($ldapsync_filter == "") ? "$name_attr=*" : $ldapsync_filter; // Find all users if no filter set.
+
+      if (!($ldapresult = $_ldapsync_ldap->search($base_dn, $filter))) {
+        continue;
+      }
+
+      $user_attr = drupal_strtolower($_ldapsync_ldap->getOption('user_attr')); 
+      $mail_attr = drupal_strtolower($_ldapsync_ldap->getOption('mail_attr')); 
+      
+      // Need to set default mail domain for LDAP users without a mail attribute.
+      // Cycle through results to build array of user information.
+      foreach ($ldapresult as $entry) {
+        $name = drupal_strtolower($entry[$user_attr][0]);
+
+        // Don't include if no name attribute.
+        if (empty($name)) {
+          continue;
+        }
+
+        // Don't include if LDAP account is disabled.
+        $status = $entry['useraccountcontrol'][0];
+        if (($status & 2) != 0) {  // This only works for Active Directory -- search includes disabled accounts in other directories.
+          continue;
+        }
+
+        $users[$name] = array(
+          'dn' => $entry['dn'],
+          'mail' => $entry[$mail_attr][0],
+        );
+      }
+    }
+  }
+
+  return $users;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Auxiliary functions
+
+/**
+ * Initiates the LDAPInterfase class.
+ *
+ * @param $sid
+ *   An ID of the LDAP server configuration.
+ *
+ * @return
+ */
+function _ldapsync_init($sid) {
+  global $_ldapsync_ldap;
+
+  if ($row = db_fetch_object(db_query("SELECT * FROM {ldapauth} WHERE sid = %d", $sid))) {
+    $_ldapsync_ldap = new LDAPInterface();
+    $_ldapsync_ldap->setOption('sid', $row->sid);
+    $_ldapsync_ldap->setOption('name', $row->name);
+    $_ldapsync_ldap->setOption('server', $row->server);
+    $_ldapsync_ldap->setOption('port', $row->port);
+    $_ldapsync_ldap->setOption('tls', $row->tls);
+    $_ldapsync_ldap->setOption('encrypted', $row->encrypted);
+    $_ldapsync_ldap->setOption('basedn', $row->basedn);
+    $_ldapsync_ldap->setOption('user_attr', $row->user_attr);
+    $_ldapsync_ldap->setOption('mail_attr', $row->mail_attr);
+    $_ldapsync_ldap->setOption('binddn', $row->binddn);
+    $_ldapsync_ldap->setOption('bindpw', $row->bindpw);
+    return $_ldapsync_ldap;
+  }
+}
